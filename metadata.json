@@ -1,0 +1,5 @@
+{
+  "name": "优惠引擎",
+  "description": "面向B端餐饮商家的SaaS后台，用于管理复杂的促销策略、互斥规则和叠加逻辑。",
+  "requestFramePermissions": []
+}
