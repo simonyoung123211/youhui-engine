@@ -36,7 +36,7 @@ export const INITIAL_CATEGORIES: PromotionCategory[] = [
   cat('mbr_item_price', PromoGroup.MEMBER, '会员价', PromoType.MEMBER_PRICE, '会员专享单品价', PromoScope.SINGLE_ITEM),
   cat('mbr_item_paid_price', PromoGroup.MEMBER, '付费会员价', PromoType.PAID_MEMBER_PRICE, '付费会员专享价', PromoScope.SINGLE_ITEM),
 
-  // ── 单品 · 用户资产 (12) ──
+  // ── 单品 · 用户资产 (9) ──
   cat('asset_item_disc_voucher', PromoGroup.ASSET, '折扣券', PromoType.DISCOUNT_VOUCHER, '单品折扣券', PromoScope.SINGLE_ITEM),
   cat('asset_item_goods_voucher', PromoGroup.ASSET, '商品券', PromoType.ITEM_VOUCHER, '指定商品抵扣', PromoScope.SINGLE_ITEM),
   cat('asset_item_buy_a_b', PromoGroup.ASSET, '买A送B券', PromoType.BUY_A_GET_B_VOUCHER, '买赠券', PromoScope.SINGLE_ITEM),
@@ -45,10 +45,7 @@ export const INITIAL_CATEGORIES: PromotionCategory[] = [
   cat('asset_item_reduce_to', PromoGroup.ASSET, '减至券', PromoType.REDUCE_TO_VOUCHER, '减至指定价', PromoScope.SINGLE_ITEM),
   cat('asset_item_count', PromoGroup.ASSET, '次券', PromoType.COUNT_VOUCHER, '次卡型券', PromoScope.SINGLE_ITEM),
   cat('asset_item_addon', PromoGroup.ASSET, '加料券', PromoType.ADDON_VOUCHER, '加料抵扣', PromoScope.SINGLE_ITEM),
-  cat('asset_item_cash_card', PromoGroup.ASSET, '现金卡', PromoType.CASH_CARD, '现金型卡券', PromoScope.SINGLE_ITEM),
   cat('asset_item_count_card', PromoGroup.ASSET, '商品次卡', PromoType.ITEM_COUNT_CARD, '商品次卡', PromoScope.SINGLE_ITEM),
-  cat('asset_item_single_card', PromoGroup.ASSET, '单次卡', PromoType.SINGLE_USE_CARD, '单次使用卡', PromoScope.SINGLE_ITEM),
-  cat('asset_item_points', PromoGroup.ASSET, '积分抵现', PromoType.POINTS_DEDUCTION, '积分抵扣单品金额', PromoScope.SINGLE_ITEM),
 
   // ── 单品 · 企迈POS (3) ──
   cat('pos_item_custom', PromoGroup.POS, '自定义记账', PromoType.POS_ITEM_CUSTOM_ACCOUNT, 'POS单品自定义优惠', PromoScope.SINGLE_ITEM),
@@ -73,9 +70,13 @@ export const INITIAL_CATEGORIES: PromotionCategory[] = [
   // ── 整单 · 用户权益 (1) ──
   cat('mbr_order_topup_bundle', PromoGroup.MEMBER, '储值搭售折扣', PromoType.TOP_UP_BUNDLE_DISCOUNT, '储值搭售整单折扣', PromoScope.ORDER),
 
-  // ── 整单 · 用户资产 (2) ──
+  // ── 整单 · 用户资产 (5) ──
   cat('asset_order_cash', PromoGroup.ASSET, '代金券', PromoType.CASH_VOUCHER, '整单代金券', PromoScope.ORDER),
   cat('asset_order_delivery', PromoGroup.ASSET, '配送费券', PromoType.DELIVERY_VOUCHER, '配送费减免券', PromoScope.ORDER),
+  // id 保留 asset_item_ 前缀以兼容历史保存数据（原为单品级，现调整为整单级）
+  cat('asset_item_cash_card', PromoGroup.ASSET, '现金卡', PromoType.CASH_CARD, '现金型卡券', PromoScope.ORDER),
+  cat('asset_item_points', PromoGroup.ASSET, '积分抵现', PromoType.POINTS_DEDUCTION, '积分抵扣订单金额', PromoScope.ORDER),
+  cat('asset_item_single_card', PromoGroup.ASSET, '单次卡', PromoType.SINGLE_USE_CARD, '单次使用卡', PromoScope.ORDER),
 
   // ── 整单 · 企迈POS (3) ──
   cat('pos_order_custom', PromoGroup.POS, '自定义记账', PromoType.POS_ORDER_CUSTOM_ACCOUNT, 'POS整单自定义优惠', PromoScope.ORDER),
@@ -100,11 +101,17 @@ export function hydratePriorityList(
 ): string[] {
   const defaultList = getDefaultPriority(cats);
   if (!saved?.length) return defaultList;
-  const validIds = new Set(cats.map(c => c.id));
+  // 以默认列表为合法集合：自动剔除已下线类型与不参与计算顺序的分组（如支付方式）
+  const validIds = new Set(defaultList);
   const kept = saved.filter(id => validIds.has(id));
   const keptSet = new Set(kept);
   const missing = defaultList.filter(id => !keptSet.has(id));
-  return [...kept, ...missing];
+  const merged = [...kept, ...missing];
+  // 类型作用域调整后（如单品改整单），按作用域稳定重分组，保证单品级在前、整单级在后
+  const scopeOf = new Map(cats.map(c => [c.id, c.defaultScope]));
+  const itemIds = merged.filter(id => scopeOf.get(id) === PromoScope.SINGLE_ITEM);
+  const orderIds = merged.filter(id => scopeOf.get(id) !== PromoScope.SINGLE_ITEM);
+  return [...itemIds, ...orderIds];
 }
 
 export function hydrateMatrix(
@@ -116,7 +123,16 @@ export function hydrateMatrix(
   cats.forEach(row => {
     cats.forEach(col => {
       const v = saved[row.id]?.[col.id];
-      if (v !== undefined) base[row.id][col.id] = v;
+      if (v === undefined) return;
+      // 「共享不叠加」仅对单品级↔单品级有效；类型作用域调整后自动纠正为互斥
+      const bothItem =
+        row.defaultScope === PromoScope.SINGLE_ITEM &&
+        col.defaultScope === PromoScope.SINGLE_ITEM;
+      if (v === InteractionType.ITEM_MUTEX && !bothItem) {
+        base[row.id][col.id] = InteractionType.MUTEX;
+        return;
+      }
+      base[row.id][col.id] = v;
     });
   });
   return base;

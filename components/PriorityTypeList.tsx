@@ -28,6 +28,9 @@ interface PriorityTypeListProps {
   onToggleSelect: (id: string) => void;
   onDragReorder: (fromId: string, toId: string) => void;
   showFlowArrow?: boolean;
+  draggingScope?: PromoScope | null;
+  onDragScopeChange?: (scope: PromoScope | null) => void;
+  onResetItem?: (id: string, defaultGlobalIndex: number) => void;
 }
 
 export function PriorityTypeList({
@@ -40,10 +43,14 @@ export function PriorityTypeList({
   onToggleSelect,
   onDragReorder,
   showFlowArrow,
+  draggingScope,
+  onDragScopeChange,
+  onResetItem,
 }: PriorityTypeListProps) {
   const [dragId, setDragId] = useState<string | null>(null);
   const scopeClass =
     phaseScope === PromoScope.SINGLE_ITEM ? 'calc-order-stage--item' : 'calc-order-stage--order';
+  const isOtherScopeDragging = !!draggingScope && draggingScope !== phaseScope;
 
   const header = useMemo(
     () => (
@@ -57,9 +64,14 @@ export function PriorityTypeList({
   );
 
   return (
-    <div className={`calc-order-stage flex flex-col min-h-0 ${scopeClass}`}>
+    <div className={`calc-order-stage flex flex-col min-h-0 ${scopeClass} ${isOtherScopeDragging ? 'calc-order-stage--dimmed' : ''}`}>
       {header}
       <div className="calc-order-stage__body flex flex-col flex-1 min-h-[240px] relative">
+        {isOtherScopeDragging && (
+          <div className="calc-order-stage__cross-hint">
+            不可跨计算阶段拖动，单品级与整单级需分别调整
+          </div>
+        )}
         {items.length === 0 ? (
           <div className="calc-order-stage__empty">无匹配优惠类型</div>
         ) : (
@@ -77,15 +89,23 @@ export function PriorityTypeList({
                     dragging ? 'calc-order-row--dragging' : ''
                   } ${isEditing ? 'calc-order-row--editable' : ''}`}
                   draggable={isEditing}
-                  onDragStart={() => isEditing && setDragId(item.id)}
+                  onDragStart={() => {
+                    if (!isEditing) return;
+                    setDragId(item.id);
+                    onDragScopeChange?.(phaseScope);
+                  }}
                   onDragOver={e => isEditing && e.preventDefault()}
                   onDrop={() => {
                     if (isEditing && dragId && dragId !== item.id) {
                       onDragReorder(dragId, item.id);
                     }
                     setDragId(null);
+                    onDragScopeChange?.(null);
                   }}
-                  onDragEnd={() => setDragId(null)}
+                  onDragEnd={() => {
+                    setDragId(null);
+                    onDragScopeChange?.(null);
+                  }}
                 >
                   {isEditing && (
                     <div
@@ -114,6 +134,19 @@ export function PriorityTypeList({
                         <span className="calc-order-row__adjusted-tag" title={`默认第 ${item.defaultGlobalIndex} 位`}>
                           已调整
                         </span>
+                      )}
+                      {isEditing && item.isAdjusted && onResetItem && (
+                        <button
+                          type="button"
+                          className="calc-order-row__reset-btn"
+                          title={`恢复到默认第 ${item.defaultGlobalIndex} 位`}
+                          onClick={e => {
+                            e.stopPropagation();
+                            onResetItem(item.id, item.defaultGlobalIndex);
+                          }}
+                        >
+                          恢复默认位
+                        </button>
                       )}
                     </div>
                     <div className="calc-order-row__desc">{item.category.description}</div>

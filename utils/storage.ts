@@ -1,4 +1,5 @@
 import { RuleMatrix, InstanceRuleMap, PromoInstance } from '../types';
+import { ApplicationStrategyConfig } from '../types/applicationStrategy';
 
 const STORAGE_KEY = 'promo-demo-config-v2';
 
@@ -8,6 +9,7 @@ export interface DemoPersistedState {
   priorityList: string[];
   stackingStrategy: 'STATIC_PRIORITY' | 'OPERATION_ORDER';
   instances: PromoInstance[];
+  applicationStrategy?: ApplicationStrategyConfig;
 }
 
 export const loadDemoState = (): Partial<DemoPersistedState> | null => {

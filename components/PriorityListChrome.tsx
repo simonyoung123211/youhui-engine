@@ -1,7 +1,8 @@
 import React from 'react';
-import { BookOpen, Calculator, ChevronDown, Filter, Pencil, RotateCcw, Save, X } from 'lucide-react';
-import { PromoGroup, PROMO_GROUP_ORDER } from '../types';
+import { BookOpen, Calculator, ChevronDown, Filter, MonitorCheck, Pencil, RotateCcw, Save, X } from 'lucide-react';
+import { PromoGroup, PROMO_GROUP_ORDER, CALC_ORDER_EXCLUDED_GROUPS } from '../types';
 import { CalcOrderGroupFilter } from '../utils/calcOrderReorder';
+import { StackingStrategy } from './StackingStrategyConfirmModal';
 
 export interface PriorityListChromeProps {
   isEditing: boolean;
@@ -26,6 +27,8 @@ export interface PriorityListChromeProps {
   rationaleExpanded: boolean;
   onRationaleExpandedChange: (v: boolean) => void;
   newCategoryNotice?: string | null;
+  stackingStrategy: StackingStrategy;
+  onOpenStrategy: () => void;
 }
 
 export function PriorityListChrome({
@@ -51,6 +54,8 @@ export function PriorityListChrome({
   rationaleExpanded,
   onRationaleExpandedChange,
   newCategoryNotice,
+  stackingStrategy,
+  onOpenStrategy,
 }: PriorityListChromeProps) {
   return (
     <>
@@ -73,6 +78,19 @@ export function PriorityListChrome({
           </p>
         </div>
         <div className="list-page-header__actions">
+          <button
+            type="button"
+            className="btn btn--default btn--sm calc-order-strategy-entry"
+            disabled={isEditing}
+            onClick={onOpenStrategy}
+            title={isEditing ? '请先保存或取消顺序调整，再切换收银策略' : '配置 B 端收银台叠加策略'}
+          >
+            <MonitorCheck size={14} />
+            POS收银策略
+            <span className="calc-order-strategy-entry__pill">
+              {stackingStrategy === 'STATIC_PRIORITY' ? '类型优先级' : '录入顺序'}
+            </span>
+          </button>
           {!isEditing ? (
             <button type="button" className="btn btn--primary btn--icon" onClick={onStartEdit}>
               <Pencil size={14} />
@@ -118,7 +136,7 @@ export function PriorityListChrome({
             <div className="info-banner">
               <span>
                 全局序号决定叠加时的扣减先后。计算分两个阶段：<strong>单品级</strong>优先执行，汇总后再执行
-                <strong>整单级</strong>。建议遵循「改价（会员价）&gt; 打折 &gt; 立减」的通用顺序。
+                <strong>整单级</strong>。平台团购按作用对象区分：套餐券/次券先核销占用商品，排在商家侧单品优惠之前；平台代金券为订单抵扣，排在商家侧整单优惠之后。建议遵循「改价（会员价）&gt; 打折 &gt; 立减」的通用顺序。
               </span>
             </div>
             <button
@@ -138,8 +156,9 @@ export function PriorityListChrome({
                   系统默认顺序按业务分组权重生成，同组内按名称稳定排序：
                 </p>
                 <ul className="calc-order-rationale__list">
-                  <li>用户权益（改价类）→ 营销活动 → 用户资产 → 企迈POS → 平台团购 → 支付方式</li>
-                  <li>单品级与整单级分别排序，序号全局连续编号</li>
+                  <li>单品级：平台团购（套餐券/次券，先核销占用商品）→ 用户权益（改价）→ 营销活动 → 用户资产 → 企迈POS</li>
+                  <li>整单级：用户权益 → 营销活动 → 用户资产 → 企迈POS → 平台团购（代金券）</li>
+                  <li>同组内按名称稳定排序，序号全局连续编号；支付方式不参与优惠计算，无需配置顺序</li>
                 </ul>
               </div>
             )}
@@ -171,7 +190,7 @@ export function PriorityListChrome({
                     onChange={e => onGroupFilterChange(e.target.value as CalcOrderGroupFilter)}
                   >
                     <option value="ALL">全部分组</option>
-                    {PROMO_GROUP_ORDER.map(g => (
+                    {PROMO_GROUP_ORDER.filter(g => !CALC_ORDER_EXCLUDED_GROUPS.includes(g)).map(g => (
                       <option key={g} value={g}>
                         {g}
                       </option>

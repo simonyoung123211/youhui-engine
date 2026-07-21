@@ -263,5 +263,4 @@ export const GROUP_PRIORITY_RATIONALE: { group: PromoGroup; itemHint: string; or
   { group: PromoGroup.ASSET, itemHint: '券/卡类靠后', orderHint: '代金券等' },
   { group: PromoGroup.POS, itemHint: 'POS 自定义', orderHint: 'POS 整单' },
   { group: PromoGroup.PLATFORM, itemHint: '平台团购', orderHint: '平台券' },
-  { group: PromoGroup.PAYMENT, itemHint: '支付最后', orderHint: '支付最后' },
 ];

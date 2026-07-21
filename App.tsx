@@ -10,7 +10,8 @@ import { RuleBuilder } from './components/RuleBuilder';
 import { RuleGuide } from './components/RuleGuide';
 import { SpecialRuleManager } from './components/SpecialRuleManager';
 import { PriorityManager } from './components/PriorityManager';
-import { OrderScenarioRulesPlaceholder } from './components/OrderScenarioRulesPlaceholder';
+import { ApplicationStrategyPage, hydrateApplicationStrategy } from './components/ApplicationStrategyPage';
+import { ApplicationStrategyConfig } from './types/applicationStrategy';
 import { Toast } from './components/Toast';
 import { loadDemoState, saveDemoState } from './utils/storage';
 import {
@@ -40,7 +41,7 @@ const SHARE_MUTEX_CHILDREN: { id: ActiveTab; label: string; icon: typeof Setting
 
 const TOP_LEVEL_NAV: { id: ActiveTab; label: string; icon: typeof ListOrdered }[] = [
   { id: 'priority', label: '计算顺序', icon: ListOrdered },
-  { id: 'scenario', label: '点单场景规则', icon: ClipboardList },
+  { id: 'scenario', label: '优惠应用策略', icon: ClipboardList },
 ];
 
 const App: React.FC = () => {
@@ -61,6 +62,9 @@ const App: React.FC = () => {
     const saved = loadDemoState();
     return hydrateInstances(saved?.instances, DATABASE_INSTANCES, INITIAL_CATEGORIES);
   });
+  const [applicationStrategy, setApplicationStrategy] = useState<ApplicationStrategyConfig>(() =>
+    hydrateApplicationStrategy(loadDemoState()?.applicationStrategy)
+  );
 
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false });
   
@@ -75,8 +79,8 @@ const App: React.FC = () => {
   }, [activeTab]);
 
   useEffect(() => {
-    saveDemoState({ typeMatrix, instanceRules, priorityList, stackingStrategy, instances });
-  }, [typeMatrix, instanceRules, priorityList, stackingStrategy, instances]);
+    saveDemoState({ typeMatrix, instanceRules, priorityList, stackingStrategy, instances, applicationStrategy });
+  }, [typeMatrix, instanceRules, priorityList, stackingStrategy, instances, applicationStrategy]);
 
   const showDemoSaveToast = useCallback((label: string) => {
     setToast({
@@ -280,7 +284,14 @@ const App: React.FC = () => {
 
             {activeTab === 'scenario' && (
             <div className="animate-fade-in h-full overflow-hidden">
-                <OrderScenarioRulesPlaceholder />
+                <ApplicationStrategyPage
+                  config={applicationStrategy}
+                  onConfigChange={setApplicationStrategy}
+                  categories={categories}
+                  instances={instances}
+                  onSave={() => showDemoSaveToast('优惠应用策略')}
+                  onToast={showToast}
+                />
             </div>
             )}
 

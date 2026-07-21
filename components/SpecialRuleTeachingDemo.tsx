@@ -1,6 +1,6 @@
 import React from 'react';
 import { FlaskConical } from 'lucide-react';
-import { InteractionType, SpecialRule } from '../types';
+import { InteractionType, PromoRef, SpecialRule } from '../types';
 import { DEMO_TYPE_A, DEMO_TYPE_B, DEMO_TYPE_C } from '../data/mockSpecialRules';
 import { interactionLabel, resolveOrderPairs, resolvePair } from '../utils/specialRuleResolver';
 
@@ -9,12 +9,19 @@ interface SpecialRuleTeachingDemoProps {
   priorityEnabled: boolean;
   compact?: boolean;
   className?: string;
+  onInspectDemoPair?: (
+    labelA: string,
+    labelB: string,
+    promoA: PromoRef,
+    promoB: PromoRef
+  ) => void;
 }
 
 function SimulatorRow({
   title,
   desc,
   result,
+  onInspect,
 }: {
   title: string;
   desc?: string;
@@ -22,12 +29,30 @@ function SimulatorRow({
     interaction: InteractionType | null;
     winningRule?: SpecialRule;
     candidates: { rule: SpecialRule; reasons: string[] }[];
+    promoA?: PromoRef;
+    promoB?: PromoRef;
+    labelA?: string;
+    labelB?: string;
   };
+  onInspect?: () => void;
 }) {
   return (
     <div className="bg-white border border-[#e8e8e8] rounded p-3">
-      <div className="font-medium text-[#262626] text-[13px]">{title}</div>
-      {desc && <div className="text-[12px] text-[#8c8c8c] mt-0.5">{desc}</div>}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="font-medium text-[#262626] text-[13px]">{title}</div>
+          {desc && <div className="text-[12px] text-[#8c8c8c] mt-0.5">{desc}</div>}
+        </div>
+        {onInspect && (
+          <button
+            type="button"
+            className="text-[12px] text-brand-600 hover:underline shrink-0"
+            onClick={onInspect}
+          >
+            查看命中链
+          </button>
+        )}
+      </div>
       <div className="mt-2 flex items-center gap-2 flex-wrap">
         <span className="text-brand-600 font-semibold text-[13px]">
           → {result.interaction ? interactionLabel(result.interaction) : '无'}
@@ -53,27 +78,17 @@ export const SpecialRuleTeachingDemo: React.FC<SpecialRuleTeachingDemoProps> = (
   priorityEnabled,
   compact = false,
   className = '',
+  onInspectDemoPair,
 }) => {
-  const demoAb = resolvePair(
-    rules,
-    { id: DEMO_TYPE_A, refType: 'TYPE', typeId: DEMO_TYPE_A },
-    { id: DEMO_TYPE_B, refType: 'TYPE', typeId: DEMO_TYPE_B },
-    InteractionType.MUTEX,
-    priorityEnabled
-  );
-  const demoAc = resolvePair(
-    rules,
-    { id: DEMO_TYPE_A, refType: 'TYPE', typeId: DEMO_TYPE_A },
-    { id: DEMO_TYPE_C, refType: 'TYPE', typeId: DEMO_TYPE_C },
-    InteractionType.MUTEX,
-    priorityEnabled
-  );
+  const refA = { id: DEMO_TYPE_A, refType: 'TYPE' as const, typeId: DEMO_TYPE_A };
+  const refB = { id: DEMO_TYPE_B, refType: 'TYPE' as const, typeId: DEMO_TYPE_B };
+  const refC = { id: DEMO_TYPE_C, refType: 'TYPE' as const, typeId: DEMO_TYPE_C };
+
+  const demoAb = resolvePair(rules, refA, refB, InteractionType.MUTEX, priorityEnabled);
+  const demoAc = resolvePair(rules, refA, refC, InteractionType.MUTEX, priorityEnabled);
   const demoOrderAb = resolveOrderPairs(
     rules,
-    [
-      { id: DEMO_TYPE_A, refType: 'TYPE', typeId: DEMO_TYPE_A },
-      { id: DEMO_TYPE_B, refType: 'TYPE', typeId: DEMO_TYPE_B },
-    ],
+    [refA, refB],
     InteractionType.MUTEX,
     priorityEnabled
   );
@@ -97,10 +112,31 @@ export const SpecialRuleTeachingDemo: React.FC<SpecialRuleTeachingDemoProps> = (
         <SimulatorRow
           title="订单只有 A + B"
           desc="只涉及「批内关系」，组间规则2 不参与"
-          result={demoOrderAb[0]}
+          result={{ ...demoOrderAb[0], promoA: refA, promoB: refB, labelA: '优惠类型A', labelB: '优惠类型B' }}
+          onInspect={
+            onInspectDemoPair
+              ? () => onInspectDemoPair('优惠类型A（满减）', '优惠类型B（满赠）', refA, refB)
+              : undefined
+          }
         />
-        <SimulatorRow title="A 与 B 这一对" result={demoAb} />
-        <SimulatorRow title="A 与 C 这一对" result={demoAc} />
+        <SimulatorRow
+          title="A 与 B 这一对"
+          result={{ ...demoAb, promoA: refA, promoB: refB, labelA: '优惠类型A', labelB: '优惠类型B' }}
+          onInspect={
+            onInspectDemoPair
+              ? () => onInspectDemoPair('优惠类型A（满减）', '优惠类型B（满赠）', refA, refB)
+              : undefined
+          }
+        />
+        <SimulatorRow
+          title="A 与 C 这一对"
+          result={{ ...demoAc, promoA: refA, promoB: refC, labelA: '优惠类型A', labelB: '优惠类型C' }}
+          onInspect={
+            onInspectDemoPair
+              ? () => onInspectDemoPair('优惠类型A（满减）', '优惠类型C（代金券）', refA, refC)
+              : undefined
+          }
+        />
       </div>
     </section>
   );

@@ -227,15 +227,24 @@ export interface Product {
   image: string;
 }
 
-/** 业务分组在计算顺序中的默认权重（数值越小越先执行） */
+/**
+ * 业务分组在计算顺序中的默认权重（数值越小越先执行）。
+ * 支付方式类不参与优惠计算顺序配置，已从计算顺序中排除。
+ * 平台团购按作用对象拆分：
+ * - 单品类（套餐券/次券）先核销并占用商品，权重置于所有商家侧单品优惠之前；
+ * - 整单类（平台代金券）为订单金额抵扣，权重置于所有商家侧整单优惠之后。
+ */
 const GROUP_PRIORITY: Record<PromoGroup, { item: number; order: number }> = {
+  [PromoGroup.PLATFORM]: { item: -100, order: 130 },
   [PromoGroup.MEMBER]: { item: 0, order: 90 },
   [PromoGroup.ACTIVITY]: { item: 20, order: 100 },
   [PromoGroup.ASSET]: { item: 40, order: 110 },
   [PromoGroup.POS]: { item: 50, order: 120 },
-  [PromoGroup.PLATFORM]: { item: 60, order: 130 },
   [PromoGroup.PAYMENT]: { item: 200, order: 200 },
 };
+
+/** 不参与计算顺序配置的分组 */
+export const CALC_ORDER_EXCLUDED_GROUPS: PromoGroup[] = [PromoGroup.PAYMENT];
 
 export const getDefaultPriority = (cats: PromotionCategory[]): string[] => {
   const getScore = (c: PromotionCategory) => {
@@ -244,7 +253,8 @@ export const getDefaultPriority = (cats: PromotionCategory[]): string[] => {
     // 同组内按名称稳定排序
     return scopeBase;
   };
-  return [...cats]
+  return cats
+    .filter(c => !CALC_ORDER_EXCLUDED_GROUPS.includes(c.group))
     .sort((a, b) => {
       const diff = getScore(a) - getScore(b);
       if (diff !== 0) return diff;

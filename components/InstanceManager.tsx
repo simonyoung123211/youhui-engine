@@ -3,6 +3,7 @@ import { PromoInstance, PromotionCategory, InstanceRuleMap, InteractionType, Rul
 import { Plus, Trash2, GitMerge, Search, Filter, Layers, Box, Pencil, Save, ChevronDown, ChevronRight, X, ListFilter, ListChecks, CheckSquare, Square, MinusSquare, Check, MoreHorizontal, AlertCircle, BookOpen } from 'lucide-react';
 import { RuleGuide } from './RuleGuide';
 import { ModalShell } from './ModalShell';
+import { ConfirmActionModal } from './ConfirmActionModal';
 
 interface InstanceManagerProps {
   categories: PromotionCategory[];
@@ -40,6 +41,7 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
   const [sourceScopeTab, setSourceScopeTab] = useState<'ALL' | 'ORDER' | 'SINGLE_ITEM'>('ALL'); // Keep this tab filter
 
   const [isEditing, setIsEditing] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   
   // UX: Selection State for Batch Operations (Right side targets)
   const [selectedTargetIds, setSelectedTargetIds] = useState<Set<string>>(new Set());
@@ -132,6 +134,15 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
         setSelectedSourceIds(next);
     }
   };
+
+  const requestDelete = (id: string) => {
+    setPendingDeleteId(id);
+  };
+
+  const pendingDeleteInstance = useMemo(
+    () => (pendingDeleteId ? instances.find(inst => inst.id === pendingDeleteId) : null),
+    [instances, pendingDeleteId]
+  );
 
   const handleAddFromDb = () => {
       const toAdd = dbInstances.filter(i => selectedDbIds.has(i.id));
@@ -527,6 +538,7 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
   };
 
   return (
+    <>
     <div className="grid grid-cols-12 gap-6 h-[calc(100vh-160px)] relative">
       <RuleGuide isOpen={showGuide} onClose={() => setShowGuide(false)} />
 
@@ -746,7 +758,7 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
                                                 </div>
                                             </div>
                                             <button 
-                                                onClick={(e) => { e.stopPropagation(); handleDelete(inst.id); }}
+                                                onClick={(e) => { e.stopPropagation(); requestDelete(inst.id); }}
                                                 className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                                                 title="移除此例外配置"
                                             >
@@ -903,5 +915,27 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
          )}
       </div>
     </div>
+    <ConfirmActionModal
+      open={pendingDeleteId !== null}
+      title="确认移除"
+      description={
+        pendingDeleteInstance ? (
+          <>
+            确认移除例外配置「<strong className="text-[#262626]">{pendingDeleteInstance.name}</strong>
+            」？移除后该对象的特例关系配置将被删除。
+          </>
+        ) : (
+          '确认移除此例外配置？移除后该对象的特例关系配置将被删除。'
+        )
+      }
+      confirmLabel="确认移除"
+      variant="danger"
+      onCancel={() => setPendingDeleteId(null)}
+      onConfirm={() => {
+        if (pendingDeleteId) handleDelete(pendingDeleteId);
+        setPendingDeleteId(null);
+      }}
+    />
+    </>
   );
 };

@@ -277,7 +277,7 @@ export function getPairCoverage(
   return resolvePair(rules, a, b, InteractionType.MUTEX, priorityEnabled);
 }
 
-function memberToRef(m: RuleMember, instanceTypeMap?: Record<string, string>): PromoRef {
+export function ruleMemberToPromoRef(m: RuleMember, instanceTypeMap?: Record<string, string>): PromoRef {
   if (m.refType === 'TYPE') {
     return { id: m.refId, refType: 'TYPE', typeId: m.refId };
   }
@@ -321,8 +321,8 @@ export function expandRulePairs(
   instanceTypeMap?: Record<string, string>
 ): Array<[PromoRef, PromoRef]> {
   return expandRuleMemberPairs(rule).map(({ a, b }) => [
-    memberToRef(a, instanceTypeMap),
-    memberToRef(b, instanceTypeMap),
+    ruleMemberToPromoRef(a, instanceTypeMap),
+    ruleMemberToPromoRef(b, instanceTypeMap),
   ]);
 }
 
@@ -354,8 +354,8 @@ export function detectSaveImpact(
   const ineffective: IneffectiveItem[] = [];
 
   for (const { a: ma, b: mb } of expandRuleMemberPairs(draft)) {
-    const refA = memberToRef(ma, instanceTypeMap);
-    const refB = memberToRef(mb, instanceTypeMap);
+    const refA = ruleMemberToPromoRef(ma, instanceTypeMap);
+    const refB = ruleMemberToPromoRef(mb, instanceTypeMap);
     const key = pairKey(refA.id, refB.id);
 
     const before = resolvePair(others, refA, refB, InteractionType.MUTEX, priorityEnabled);
@@ -456,8 +456,8 @@ export function getRulePairStatuses(
 }> {
   if (rule.status !== 'ENABLED') {
     return expandRuleMemberPairs(rule).map(({ a, b }) => ({
-      promoA: memberToRef(a, instanceTypeMap),
-      promoB: memberToRef(b, instanceTypeMap),
+      promoA: ruleMemberToPromoRef(a, instanceTypeMap),
+      promoB: ruleMemberToPromoRef(b, instanceTypeMap),
       labelA: a.refName,
       labelB: b.refName,
       ruleInteraction: rule.interaction,
@@ -466,8 +466,8 @@ export function getRulePairStatuses(
   }
 
   return expandRuleMemberPairs(rule).map(({ a, b }) => {
-    const refA = memberToRef(a, instanceTypeMap);
-    const refB = memberToRef(b, instanceTypeMap);
+    const refA = ruleMemberToPromoRef(a, instanceTypeMap);
+    const refB = ruleMemberToPromoRef(b, instanceTypeMap);
     const res = resolvePair(allRules, refA, refB, InteractionType.MUTEX, priorityEnabled);
     const effective = res.winningRule?.id === rule.id;
     return {

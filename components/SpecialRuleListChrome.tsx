@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, ChevronDown, Filter, Plus, RotateCcw, Settings } from 'lucide-react';
+import { BookOpen, ChevronDown, Filter, Plus, RotateCcw, Search, Settings } from 'lucide-react';
 import { InteractionType } from '../types';
 import {
   SpecialRuleInteractionFilter,
@@ -84,6 +84,10 @@ export function SpecialRuleListChrome({
           </div>
         </div>
         <div className="list-page-header__actions">
+          <button type="button" className="btn btn--default btn--icon" onClick={onOpenInspector}>
+            <Search size={14} />
+            关系排查
+          </button>
           <button type="button" className="btn btn--default btn--icon" onClick={onOpenGuide}>
             <BookOpen size={14} />
             规则说明
@@ -119,6 +123,7 @@ export function SpecialRuleListChrome({
                 特例规则优先于默认规则。系统按<strong>「每一对优惠单独判断」</strong>：具体度（实例↔实例
                 &gt; 实例↔类型 &gt; 类型↔类型）优先，同层再比创建时间。
                 {priorityEnabled && ' 已启用显式优先级，数字越小越优先。'}
+                不确定某对优惠最终关系时，可使用「关系排查」试算命中链。
               </span>
             </div>
             <div className="info-banner__links">
@@ -142,7 +147,7 @@ export function SpecialRuleListChrome({
                 className="info-banner__link border-none bg-transparent cursor-pointer"
                 onClick={onOpenInspector}
               >
-                高级 · 关系排查
+                关系排查
               </button>
             </div>
           </div>

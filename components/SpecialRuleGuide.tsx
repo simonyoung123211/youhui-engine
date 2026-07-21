@@ -98,8 +98,7 @@ export const SpecialRuleGuide: React.FC<SpecialRuleGuideProps> = ({
               冲突与覆盖
             </h3>
             <p className="text-[13px] text-[#595959] leading-relaxed">
-              保存时会提示将覆盖的已有关系，以及因被更具体规则挡住而不生效的关系对。可在规则详情页查看「本规则关系对生效状态」，或在「高级 ·
-              关系排查」中逐对检查命中链。
+              保存时会提示将覆盖的已有关系，以及因被更具体规则挡住而不生效的关系对。可在规则详情页查看「本规则关系对生效状态」，或使用「关系排查」逐对试算命中链。
             </p>
           </section>
 

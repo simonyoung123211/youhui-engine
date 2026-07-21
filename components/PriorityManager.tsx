@@ -4,14 +4,8 @@ import {
   PromotionCategory,
   PromoScope,
   getDefaultPriority,
+  CALC_ORDER_EXCLUDED_GROUPS,
 } from '../types';
-import {
-  Info,
-  ListOrdered,
-  MonitorCheck,
-  MousePointerClick,
-  Smartphone,
-} from 'lucide-react';
 import { PriorityListChrome } from './PriorityListChrome';
 import { PriorityTypeList } from './PriorityTypeList';
 import { CalcOrderSaveConfirmModal } from './CalcOrderSaveConfirmModal';
@@ -19,6 +13,7 @@ import {
   StackingStrategyConfirmModal,
   StackingStrategy,
 } from './StackingStrategyConfirmModal';
+import { StackingStrategyModal } from './StackingStrategyModal';
 import { ModalShell } from './ModalShell';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import {
@@ -71,7 +66,12 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
   onToast,
 }) => {
   const initialUrl = readCalcOrderListUrl();
-  const defaultList = useMemo(() => getDefaultPriority(categories), [categories]);
+  // 支付方式等分组不参与计算顺序配置
+  const calcCategories = useMemo(
+    () => categories.filter(c => !CALC_ORDER_EXCLUDED_GROUPS.includes(c.group)),
+    [categories]
+  );
+  const defaultList = useMemo(() => getDefaultPriority(calcCategories), [calcCategories]);
 
   const [isEditing, setIsEditing] = useState(false);
   const [draftList, setDraftList] = useState<string[]>(priorityList);
@@ -85,9 +85,11 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
   );
   const [bannerExpanded, setBannerExpanded] = useState(false);
   const [rationaleExpanded, setRationaleExpanded] = useState(false);
+  const [strategyPickerOpen, setStrategyPickerOpen] = useState(false);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [targetIndexInput, setTargetIndexInput] = useState('1');
+  const [draggingScope, setDraggingScope] = useState<PromoScope | null>(null);
 
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [resetModalOpen, setResetModalOpen] = useState(false);
@@ -107,15 +109,15 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
 
   useEffect(() => {
     const known = loadKnownCategoryIds();
-    const allIds = categories.map(c => c.id);
-    const newlyAdded = detectNewCategoryIds(categories, known);
+    const allIds = calcCategories.map(c => c.id);
+    const newlyAdded = detectNewCategoryIds(calcCategories, known);
     if (known && newlyAdded.length > 0) {
       setNewCategoryNotice(
-        `系统新增 ${newlyAdded.length} 个优惠类型，已按默认规则追加到顺序末尾，请核对全局序号。`
+        `系统新增 ${newlyAdded.length} 个优惠类型，已暂时追加到顺序末尾，请按默认推荐位置核对调整。`
       );
     }
     saveKnownCategoryIds(allIds);
-  }, [categories]);
+  }, [calcCategories]);
 
   useEffect(() => {
     if (skipUrlSyncRef.current) {
@@ -128,8 +130,8 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
   const activeList = isEditing ? draftList : priorityList;
 
   const allItems = useMemo(
-    () => buildCalcOrderItems(activeList, categories, defaultList),
-    [activeList, categories, defaultList]
+    () => buildCalcOrderItems(activeList, calcCategories, defaultList),
+    [activeList, calcCategories, defaultList]
   );
 
   const filteredItems = useMemo(
@@ -146,8 +148,8 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
   const { itemLevel, orderLevel } = useMemo(() => splitByScope(filteredItems), [filteredItems]);
 
   const adjustedCount = useMemo(
-    () => getAdjustedCategoryIds(activeList, categories).length,
-    [activeList, categories]
+    () => getAdjustedCategoryIds(activeList, calcCategories).length,
+    [activeList, calcCategories]
   );
 
   const hasDraftChanges = useMemo(
@@ -156,8 +158,8 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
   );
 
   const pendingChanges = useMemo(
-    () => computeCalcOrderChanges(savedSnapshot, draftList, categories),
-    [savedSnapshot, draftList, categories]
+    () => computeCalcOrderChanges(savedSnapshot, draftList, calcCategories),
+    [savedSnapshot, draftList, calcCategories]
   );
 
   const hasActiveFilters =
@@ -236,7 +238,7 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
   };
 
   const handleDragReorder = (fromId: string, toId: string) => {
-    const result = reorderCalcOrderByDrag(draftList, fromId, toId, categories);
+    const result = reorderCalcOrderByDrag(draftList, fromId, toId, calcCategories);
     if (result.rejected === 'CROSS_SCOPE') {
       showToast('不可跨计算阶段拖动，单品级与整单级需分别调整');
       return;
@@ -245,7 +247,7 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
   };
 
   const updateDraft = (updater: (list: string[]) => string[]) => {
-    setDraftList(prev => normalizeCalcOrderByScope(updater(prev), categories));
+    setDraftList(prev => normalizeCalcOrderByScope(updater(prev), calcCategories));
   };
 
   const selectedIdList = useMemo(() => [...selectedIds], [selectedIds]);
@@ -264,12 +266,21 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
       showToast(`请输入 1–${draftList.length} 之间的目标序号`);
       return;
     }
-    applyBatchMove((list, ids) => moveCalcOrderToIndex(list, ids, n - 1, categories));
+    applyBatchMove((list, ids) => moveCalcOrderToIndex(list, ids, n - 1, calcCategories));
   };
 
-  const handleStrategyClick = (next: StackingStrategy) => {
+  const handleResetItem = (id: string, defaultGlobalIndex: number) => {
+    updateDraft(list => moveCalcOrderToIndex(list, [id], Math.max(0, defaultGlobalIndex - 1), calcCategories));
+  };
+
+  const handleOpenStrategy = () => {
     if (isEditing) return;
-    if (next === stackingStrategy) return;
+    setStrategyPickerOpen(true);
+  };
+
+  const handlePickStrategy = (next: StackingStrategy) => {
+    setStrategyPickerOpen(false);
+    if (isEditing || next === stackingStrategy) return;
     setPendingStrategy(next);
     setStrategyModalOpen(true);
   };
@@ -315,6 +326,8 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
         rationaleExpanded={rationaleExpanded}
         onRationaleExpandedChange={setRationaleExpanded}
         newCategoryNotice={newCategoryNotice}
+        stackingStrategy={stackingStrategy}
+        onOpenStrategy={handleOpenStrategy}
       />
 
       {isEditing && (
@@ -326,30 +339,52 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
       {isEditing && (
         <div className="calc-order-batch-bar shrink-0">
           <span className="calc-order-batch-bar__label">已选 {selectedIds.size} 项</span>
-          <button type="button" className="btn btn--default btn--sm" onClick={() => applyBatchMove((list, ids) => moveCalcOrderToTop(list, ids, categories))}>
+          <button
+            type="button"
+            className="btn btn--default btn--sm"
+            disabled={!selectedIdList.length}
+            onClick={() => applyBatchMove((list, ids) => moveCalcOrderToTop(list, ids, calcCategories))}
+          >
             移至顶
           </button>
-          <button type="button" className="btn btn--default btn--sm" onClick={() => applyBatchMove((list, ids) => moveCalcOrderByOffset(list, ids, -1, categories))}>
+          <button
+            type="button"
+            className="btn btn--default btn--sm"
+            disabled={!selectedIdList.length}
+            onClick={() => applyBatchMove((list, ids) => moveCalcOrderByOffset(list, ids, -1, calcCategories))}
+          >
             上移
           </button>
-          <button type="button" className="btn btn--default btn--sm" onClick={() => applyBatchMove((list, ids) => moveCalcOrderByOffset(list, ids, 1, categories))}>
+          <button
+            type="button"
+            className="btn btn--default btn--sm"
+            disabled={!selectedIdList.length}
+            onClick={() => applyBatchMove((list, ids) => moveCalcOrderByOffset(list, ids, 1, calcCategories))}
+          >
             下移
           </button>
-          <button type="button" className="btn btn--default btn--sm" onClick={() => applyBatchMove((list, ids) => moveCalcOrderToBottom(list, ids, categories))}>
+          <button
+            type="button"
+            className="btn btn--default btn--sm"
+            disabled={!selectedIdList.length}
+            onClick={() => applyBatchMove((list, ids) => moveCalcOrderToBottom(list, ids, calcCategories))}
+          >
             移至底
           </button>
-          <div className="calc-order-batch-bar__index">
-            <label htmlFor="co-target-idx">移至序号</label>
-            <input
-              id="co-target-idx"
-              className="calc-order-batch-bar__input"
-              value={targetIndexInput}
-              onChange={e => setTargetIndexInput(e.target.value)}
-            />
-            <button type="button" className="btn btn--default btn--sm" onClick={handleMoveToIndex}>
-              应用
-            </button>
-          </div>
+          {selectedIdList.length > 0 && (
+            <div className="calc-order-batch-bar__index">
+              <label htmlFor="co-target-idx">移至序号</label>
+              <input
+                id="co-target-idx"
+                className="calc-order-batch-bar__input"
+                value={targetIndexInput}
+                onChange={e => setTargetIndexInput(e.target.value)}
+              />
+              <button type="button" className="btn btn--default btn--sm" onClick={handleMoveToIndex}>
+                应用
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -376,6 +411,9 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
             })
           }
           onDragReorder={handleDragReorder}
+          draggingScope={draggingScope}
+          onDragScopeChange={setDraggingScope}
+          onResetItem={handleResetItem}
           showFlowArrow
         />
         <PriorityTypeList
@@ -394,6 +432,9 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
             })
           }
           onDragReorder={handleDragReorder}
+          draggingScope={draggingScope}
+          onDragScopeChange={setDraggingScope}
+          onResetItem={handleResetItem}
         />
       </div>
 
@@ -409,89 +450,13 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
         </div>
       )}
 
-      <div className="calc-order-strategy shrink-0 mx-4 mb-4 bg-white border border-[#e8e8e8] rounded overflow-hidden">
-        <div className="p-4 bg-[#fafafa] border-b border-[#e8e8e8] flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded bg-brand-50 text-brand-600 flex items-center justify-center shrink-0">
-              <MonitorCheck size={16} />
-            </div>
-            <div>
-              <h3 className="text-[14px] font-medium text-[#262626] flex items-center gap-2">
-                B 端收银顺序
-                <span className="text-[11px] bg-[#262626] text-white px-1.5 py-0.5 rounded">POS</span>
-              </h3>
-              <p className="text-[12px] text-[#8c8c8c] mt-0.5">
-                当多种优惠允许叠加时，收银员操作顺序是否影响计算结果。
-              </p>
-            </div>
-          </div>
-          {isEditing && (
-            <div className="calc-order-strategy__lock">
-              <Info size={13} />
-              请先保存或取消顺序调整，再切换收银策略
-            </div>
-          )}
-        </div>
-
-        <div className={`p-4 ${isEditing ? 'calc-order-strategy__body--locked' : ''}`}>
-          <div className="flex flex-col md:flex-row gap-3">
-            <button
-              type="button"
-              className={`calc-order-strategy-card flex-1 text-left ${
-                stackingStrategy === 'STATIC_PRIORITY' ? 'calc-order-strategy-card--active' : ''
-              }`}
-              disabled={isEditing}
-              onClick={() => handleStrategyClick('STATIC_PRIORITY')}
-            >
-              <div className="flex justify-between items-start mb-2">
-                <div className="w-8 h-8 rounded bg-blue-50 text-brand-600 flex items-center justify-center">
-                  <ListOrdered size={16} />
-                </div>
-                {stackingStrategy === 'STATIC_PRIORITY' && (
-                  <span className="calc-order-strategy-card__badge">当前生效</span>
-                )}
-              </div>
-              <h4 className="text-[13px] font-medium text-[#262626]">严格遵循类型优先级（默认）</h4>
-              <p className="text-[12px] text-[#8c8c8c] mt-1.5 leading-relaxed">
-                无论收银员先录入哪张券，系统都按上方全局序号计算。
-              </p>
-            </button>
-
-            <button
-              type="button"
-              className={`calc-order-strategy-card flex-1 text-left ${
-                stackingStrategy === 'OPERATION_ORDER' ? 'calc-order-strategy-card--active-purple' : ''
-              }`}
-              disabled={isEditing}
-              onClick={() => handleStrategyClick('OPERATION_ORDER')}
-            >
-              <div className="flex justify-between items-start mb-2">
-                <div className="w-8 h-8 rounded bg-purple-50 text-purple-600 flex items-center justify-center">
-                  <MousePointerClick size={16} />
-                </div>
-                {stackingStrategy === 'OPERATION_ORDER' && (
-                  <span className="calc-order-strategy-card__badge calc-order-strategy-card__badge--purple">
-                    当前生效
-                  </span>
-                )}
-              </div>
-              <h4 className="text-[13px] font-medium text-[#262626]">遵循收银添加顺序</h4>
-              <p className="text-[12px] text-[#8c8c8c] mt-1.5 leading-relaxed">
-                按收银员扫码/点击的先后顺序扣减。
-                <span className="text-purple-600"> 录入顺序可能影响实付。</span>
-              </p>
-              <div className="mt-2.5 text-[11px] text-[#8c8c8c] space-y-1">
-                <div className="flex items-center gap-1">
-                  <MonitorCheck size={12} className="text-orange-500" /> B 端收银台 · 生效
-                </div>
-                <div className="flex items-center gap-1 text-[#bfbfbf]">
-                  <Smartphone size={12} /> C 端小程序 · 强制类型优先级
-                </div>
-              </div>
-            </button>
-          </div>
-        </div>
-      </div>
+      <StackingStrategyModal
+        open={strategyPickerOpen}
+        current={stackingStrategy}
+        locked={isEditing}
+        onClose={() => setStrategyPickerOpen(false)}
+        onPick={handlePickStrategy}
+      />
 
       <CalcOrderSaveConfirmModal
         open={saveModalOpen}

@@ -67,7 +67,7 @@ export const RuleGuide: React.FC<RuleGuideProps> = ({ isOpen, onClose }) => {
                         <b>满减 + 减配送费</b>：订单满 100 减 20，同时减免配送费。
                       </li>
                       <li>
-                        <b>单品折扣 + 积分抵现</b>：商品打 8 折后，剩余金额可用积分继续抵扣。
+                        <b>单品折扣 + 积分抵现</b>：商品打 8 折后，订单剩余应付金额可用积分继续抵扣。
                       </li>
                     </ul>
                   </div>
@@ -242,7 +242,7 @@ export const RuleGuide: React.FC<RuleGuideProps> = ({ isOpen, onClose }) => {
               <span className="text-[13px]">在「计算顺序」页配置</span>
             </div>
             <p className="text-[13px] text-[#595959] mb-3 leading-relaxed">
-              当多种优惠<b>允许叠加</b>时，按配置的顺序依次扣减。计算分两个阶段：先执行<b>单品级</b>，汇总后再执行<b>整单级</b>。建议遵循「改价（会员价）&gt; 打折 &gt; 立减」的通用顺序。
+              当多种优惠<b>允许叠加</b>时，按配置的顺序依次扣减。计算分两个阶段：先执行<b>单品级</b>，汇总后再执行<b>整单级</b>。建议遵循「改价（会员价）&gt; 打折 &gt; 立减」的通用顺序。平台团购按作用对象区分：套餐券/次券先核销并占用商品，排在商家侧单品优惠之前；平台代金券为订单金额抵扣，排在商家侧整单优惠之后。支付方式不参与优惠计算，无需配置顺序。
             </p>
             <div className="bg-[#fafafa] rounded p-3 border border-[#f0f0f0] text-[12px] text-[#595959] leading-relaxed">
               <span className="font-medium text-[#262626]">B 端收银顺序（仅限 POS）：</span>

@@ -31,12 +31,12 @@ import {
   interactionLabel,
 } from '../utils/specialRuleResolver';
 import { loadPriorityEnabled, savePriorityEnabled } from '../utils/priorityConfig';
-import { InstanceManager } from './InstanceManager';
+import { SpecialRuleRelationInspector } from './SpecialRuleRelationInspector';
 import { SaveConflictModal } from './SaveConflictModal';
+import { ConfirmActionModal } from './ConfirmActionModal';
 import { PairInspectorPanel } from './PairInspectorPanel';
 import { PriorityConfigPanel } from './PriorityConfigPanel';
 import { SpecialRuleGuide } from './SpecialRuleGuide';
-import { SpecialRuleTeachingDemo } from './SpecialRuleTeachingDemo';
 import { ModalShell } from './ModalShell';
 import { VirtualList } from './VirtualList';
 import { PickerQuickSearch } from './PickerQuickSearch';
@@ -96,6 +96,11 @@ import {
 } from '../data/promotionCategories';
 
 type ViewMode = 'list' | 'detail' | 'form' | 'inspector';
+
+type PendingRuleAction =
+  | { type: 'toggle'; id: string }
+  | { type: 'delete'; id: string }
+  | { type: 'save'; status: SpecialRuleStatus };
 
 interface SpecialRuleManagerProps {
   categories: PromotionCategory[];
@@ -167,8 +172,9 @@ export const SpecialRuleManager: React.FC<SpecialRuleManagerProps> = ({
   const [priorityEnabled, setPriorityEnabled] = useState(loadPriorityEnabled);
   const [priorityPanelOpen, setPriorityPanelOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
-  const [inspectorTeachingOpen, setInspectorTeachingOpen] = useState(false);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [actionConfirmOpen, setActionConfirmOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PendingRuleAction | null>(null);
   const [pendingSaveStatus, setPendingSaveStatus] = useState<SpecialRuleStatus>('ENABLED');
   const [saveImpact, setSaveImpact] = useState<ReturnType<typeof detectSaveImpact>>({
     overrides: [],
@@ -359,6 +365,113 @@ export const SpecialRuleManager: React.FC<SpecialRuleManagerProps> = ({
     }
   };
 
+  const closeActionConfirm = () => {
+    setActionConfirmOpen(false);
+    setPendingAction(null);
+  };
+
+  const requestToggleStatus = (id: string) => {
+    setPendingAction({ type: 'toggle', id });
+    setActionConfirmOpen(true);
+  };
+
+  const requestDeleteRule = (id: string) => {
+    setPendingAction({ type: 'delete', id });
+    setActionConfirmOpen(true);
+  };
+
+  const confirmPendingAction = () => {
+    if (!pendingAction) return;
+    if (pendingAction.type === 'toggle') toggleStatus(pendingAction.id);
+    else if (pendingAction.type === 'delete') deleteRule(pendingAction.id);
+    else if (pendingAction.type === 'save') {
+      const newRule = buildDraftRule(pendingAction.status);
+      if (newRule) applySavedRule(newRule);
+    }
+    closeActionConfirm();
+  };
+
+  const renderActionConfirmModal = () => {
+    if (!pendingAction) return null;
+    if (pendingAction.type === 'save') {
+      const ruleName = draft?.name?.trim() || '未命名规则';
+      const isNew = !draft?.createdAt;
+      return (
+        <ConfirmActionModal
+          open={actionConfirmOpen}
+          title={isNew ? '确认保存并启用' : '确认保存'}
+          description={
+            <>
+              {isNew ? (
+                <>
+                  确认保存并启用规则「<strong className="text-[#262626]">{ruleName}</strong>
+                  」？启用后将立即影响线上优惠计算。
+                </>
+              ) : (
+                <>
+                  确认保存规则「<strong className="text-[#262626]">{ruleName}</strong>
+                  」？保存后将立即影响线上优惠计算。
+                </>
+              )}
+            </>
+          }
+          confirmLabel={isNew ? '确认保存并启用' : '确认保存'}
+          variant="warning"
+          onCancel={closeActionConfirm}
+          onConfirm={confirmPendingAction}
+        />
+      );
+    }
+
+    const rule = rules.find(r => r.id === pendingAction.id);
+    if (!rule) return null;
+
+    if (pendingAction.type === 'toggle') {
+      const enabling = rule.status !== 'ENABLED';
+      return (
+        <ConfirmActionModal
+          open={actionConfirmOpen}
+          title={enabling ? '确认启用' : '确认停用'}
+          description={
+            enabling ? (
+              <>
+                确认启用规则「<strong className="text-[#262626]">{rule.name}</strong>」（
+                <span className="font-mono text-[12px]">{rule.id}</span>）？启用后将立即影响线上优惠计算。
+              </>
+            ) : (
+              <>
+                确认停用规则「<strong className="text-[#262626]">{rule.name}</strong>」（
+                <span className="font-mono text-[12px]">{rule.id}</span>
+                ）？停用后相关关系对将回退到默认规则或其他生效规则。
+              </>
+            )
+          }
+          confirmLabel={enabling ? '确认启用' : '确认停用'}
+          variant="warning"
+          onCancel={closeActionConfirm}
+          onConfirm={confirmPendingAction}
+        />
+      );
+    }
+
+    return (
+      <ConfirmActionModal
+        open={actionConfirmOpen}
+        title="确认删除"
+        description={
+          <>
+            确认删除规则「<strong className="text-[#262626]">{rule.name}</strong>」（
+            <span className="font-mono text-[12px]">{rule.id}</span>）？删除后不可恢复。
+          </>
+        }
+        confirmLabel="确认删除"
+        variant="danger"
+        onCancel={closeActionConfirm}
+        onConfirm={confirmPendingAction}
+      />
+    );
+  };
+
   const applyPriorityRules = (updated: SpecialRule[]) => {
     setRules(updated);
   };
@@ -418,13 +531,14 @@ export const SpecialRuleManager: React.FC<SpecialRuleManagerProps> = ({
       return;
     }
     const impact = detectSaveImpact(rules, newRule, priorityEnabled, INSTANCE_TYPE_MAP);
-    if (impact.overrides.length === 0 && impact.ineffective.length === 0) {
-      applySavedRule(newRule);
+    if (impact.overrides.length > 0 || impact.ineffective.length > 0) {
+      setPendingSaveStatus(status);
+      setSaveImpact(impact);
+      setSaveModalOpen(true);
       return;
     }
-    setPendingSaveStatus(status);
-    setSaveImpact(impact);
-    setSaveModalOpen(true);
+    setPendingAction({ type: 'save', status });
+    setActionConfirmOpen(true);
   };
 
   const confirmSave = () => {
@@ -435,51 +549,21 @@ export const SpecialRuleManager: React.FC<SpecialRuleManagerProps> = ({
 
   if (view === 'inspector') {
     return (
-      <div className="h-full flex flex-col">
-        <div className="mb-3 flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => setView('list')}
-            className="flex items-center gap-1 text-[13px] text-[#595959] hover:text-brand-600"
-          >
-            <ArrowLeft size={14} /> 返回规则列表
-          </button>
-          <span className="text-[#d9d9d9]">|</span>
-          <span className="text-[13px] font-medium text-[#262626]">高级 · 生效关系排查</span>
-          <button
-            type="button"
-            onClick={() => setInspectorTeachingOpen(v => !v)}
-            className="ml-auto flex items-center gap-1 text-[12px] text-brand-600 hover:underline"
-          >
-            <BookOpen size={13} />
-            {inspectorTeachingOpen ? '收起教学示例' : '查看 A/B/C 教学示例'}
-            {inspectorTeachingOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-          </button>
-        </div>
-        {inspectorTeachingOpen && (
-          <div className="mb-3 shrink-0">
-            <SpecialRuleTeachingDemo
-              rules={rules}
-              priorityEnabled={priorityEnabled}
-              compact
-            />
-          </div>
-        )}
-        <div className="flex-1 min-h-0">
-          <InstanceManager
-            categories={categories}
-            instances={instances}
-            setInstances={setInstances}
-            instanceRules={instanceRules}
-            onRuleChange={onRuleChange}
-            onBatchRuleChange={onBatchRuleChange}
-            onInstanceDelete={onInstanceDelete}
-            typeMatrix={typeMatrix}
-            dbInstances={dbInstances}
-            onSave={onSave}
-          />
-        </div>
-      </div>
+      <SpecialRuleRelationInspector
+        rules={rules}
+        priorityEnabled={priorityEnabled}
+        categories={categories}
+        instances={instances}
+        setInstances={setInstances}
+        instanceRules={instanceRules}
+        onRuleChange={onRuleChange}
+        onBatchRuleChange={onBatchRuleChange}
+        onInstanceDelete={onInstanceDelete}
+        typeMatrix={typeMatrix}
+        dbInstances={dbInstances}
+        onSave={onSave}
+        onBack={() => setView('list')}
+      />
     );
   }
 
@@ -506,6 +590,7 @@ export const SpecialRuleManager: React.FC<SpecialRuleManagerProps> = ({
           onCancel={() => setSaveModalOpen(false)}
           onConfirm={confirmSave}
         />
+        {renderActionConfirmModal()}
       </>
     );
   }
@@ -518,8 +603,8 @@ export const SpecialRuleManager: React.FC<SpecialRuleManagerProps> = ({
           rules={rules}
           priorityEnabled={priorityEnabled}
           onBack={() => setView('list')}
-          onToggleStatus={() => toggleStatus(selectedRule.id)}
-          onDelete={() => deleteRule(selectedRule.id)}
+          onToggleStatus={() => requestToggleStatus(selectedRule.id)}
+          onDelete={() => requestDeleteRule(selectedRule.id)}
           onInspectPair={setInspectorPair}
         />
         {inspectorPair && (
@@ -538,6 +623,7 @@ export const SpecialRuleManager: React.FC<SpecialRuleManagerProps> = ({
             onClose={() => setInspectorPair(null)}
           />
         )}
+        {renderActionConfirmModal()}
       </>
     );
   }
@@ -603,19 +689,65 @@ export const SpecialRuleManager: React.FC<SpecialRuleManagerProps> = ({
         onOpenPriorityPanel={() => setPriorityPanelOpen(true)}
         onPageChange={setListPage}
         onRetry={listQuery.retry}
-        onToggleStatus={toggleStatus}
+        onToggleStatus={requestToggleStatus}
         onOpenDetail={openDetail}
         onEdit={openEdit}
-        onDelete={deleteRule}
+        onDelete={requestDeleteRule}
         poolTotal={rules.length}
         hasActiveFilters={hasActiveListFilters}
         onCreate={openCreate}
         onClearFilters={clearListFilters}
         onPageSizeChange={handlePageSizeChange}
       />
+      {renderActionConfirmModal()}
     </div>
   );
 };
+
+function RuleDetailMemberPanel({
+  title,
+  members,
+  variant,
+  emptyText,
+}: {
+  title: string;
+  members: RuleMember[];
+  variant: 'brand' | 'orange';
+  emptyText?: string;
+}) {
+  const chipCls =
+    variant === 'orange'
+      ? 'bg-orange-50 text-orange-700 border-orange-200'
+      : 'bg-brand-50 text-brand-700 border-brand-200';
+
+  return (
+    <div className="border border-[#e8e8e8] rounded-lg bg-[#fafafa] flex flex-col min-h-[120px]">
+      <div className="px-3 py-2 border-b border-[#f0f0f0] flex items-center justify-between gap-2">
+        <h4 className="text-[13px] font-medium text-[#262626]">{title}</h4>
+        <span className="text-[11px] text-[#8c8c8c]">{members.length} 个</span>
+      </div>
+      <div className="p-3 flex-1">
+        {members.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5 max-h-[220px] overflow-y-auto custom-scrollbar">
+            {members.map(m => (
+              <span
+                key={m.refId}
+                className={`inline-flex items-center px-2 py-1 rounded text-[12px] border ${chipCls} ${
+                  m.expired ? 'opacity-50 line-through' : ''
+                }`}
+                title={m.refType === 'TYPE' ? '优惠类型' : '活动实例'}
+              >
+                {m.refName}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[12px] text-[#bfbfbf]">{emptyText ?? '暂无对象'}</p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function RuleDetail({
   rule,
@@ -635,14 +767,38 @@ function RuleDetail({
   onInspectPair: (pair: { promoA: PromoRef; promoB: PromoRef; labelA: string; labelB: string }) => void;
 }) {
   const pairStatuses = getRulePairStatuses(rule, rules, priorityEnabled, INSTANCE_TYPE_MAP);
+  const isInter = rule.relationScope === 'INTER_GROUP';
+  const pairCount = countRulePairs(rule);
+  const effectiveCount = pairStatuses.filter(ps => ps.effective).length;
 
   return (
     <div className="page-card h-full overflow-auto">
-      <div className="p-4 border-b border-[#e8e8e8] flex items-center justify-between">
-        <button type="button" className="flex items-center gap-1 text-[13px] text-[#595959]" onClick={onBack}>
-          <ArrowLeft size={14} /> 返回列表
-        </button>
-        <div className="flex gap-2">
+      <div className="p-4 border-b border-[#e8e8e8] flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <button type="button" className="flex items-center gap-1 text-[13px] text-[#595959] shrink-0 hover:text-brand-600" onClick={onBack}>
+            <ArrowLeft size={14} /> 返回列表
+          </button>
+          <div className="min-w-0 border-l border-[#f0f0f0] pl-3">
+            <h2 className="text-[15px] font-semibold text-[#262626] truncate">{rule.name}</h2>
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              <span className="font-mono text-[11px] text-[#8c8c8c]">{rule.id}</span>
+              <span
+                className={`text-[11px] px-1.5 py-0.5 rounded border ${
+                  rule.status === 'ENABLED'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-[#f5f5f5] text-[#8c8c8c] border-[#e8e8e8]'
+                }`}
+              >
+                {rule.status === 'ENABLED' ? '已启用' : '已停用'}
+              </span>
+              <span className="text-[11px] px-1.5 py-0.5 rounded border bg-[#fafafa] text-[#595959] border-[#e8e8e8]">
+                {isInter ? '组间关系' : '组内关系'}
+              </span>
+              <RelationBadge interaction={rule.interaction} />
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-2 shrink-0">
           <button type="button" className="btn btn--default" onClick={onToggleStatus}>
             {rule.status === 'ENABLED' ? '停用' : '启用'}
           </button>
@@ -660,77 +816,70 @@ function RuleDetail({
       )}
 
       <div className="p-4">
-        <section className="border border-[#e8e8e8] rounded p-4 max-w-2xl">
-          <h3 className="text-[15px] font-semibold mb-3">规则快照</h3>
-          <dl className="space-y-2 text-[13px]">
-            <div className="flex">
-              <dt className="w-24 text-[#8c8c8c]">规则名称</dt>
-              <dd>{rule.name}</dd>
-            </div>
-            <div className="flex">
-              <dt className="w-24 text-[#8c8c8c]">规则 ID</dt>
-              <dd className="font-mono text-[12px]">{rule.id}</dd>
-            </div>
-            <div className="flex">
-              <dt className="w-24 text-[#8c8c8c]">关系类型</dt>
-              <dd>{rule.relationScope === 'INTRA_GROUP' ? '组内关系' : '组间关系'}</dd>
-            </div>
-            <div className="flex">
-              <dt className="w-24 text-[#8c8c8c]">关系</dt>
-              <dd>{interactionLabel(rule.interaction)}</dd>
-            </div>
-            <div className="flex">
-              <dt className="w-24 text-[#8c8c8c]">规则对象</dt>
-              <dd>
-                {rule.sideA.map(m => (
-                  <span
-                    key={m.refId}
-                    className={`inline-block mr-1 mb-1 px-2 py-0.5 rounded text-[12px] border ${
-                      m.expired ? 'bg-gray-100 text-gray-400 line-through' : 'bg-brand-50 text-brand-700 border-brand-200'
-                    }`}
-                  >
-                    {m.refName}
-                  </span>
-                ))}
-              </dd>
-            </div>
-            {rule.relationScope === 'INTER_GROUP' && (
-              <div className="flex">
-                <dt className="w-24 text-[#8c8c8c]">限制对象</dt>
-                <dd>
-                  {(rule.sideB ?? []).map(m => (
-                    <span
-                      key={m.refId}
-                      className={`inline-block mr-1 mb-1 px-2 py-0.5 rounded text-[12px] border ${
-                        m.expired ? 'bg-gray-100 text-gray-400 line-through' : 'bg-orange-50 text-orange-700 border-orange-200'
-                      }`}
-                    >
-                      {m.refName}
-                    </span>
-                  ))}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+          <section className="xl:col-span-3 border border-[#e8e8e8] rounded-lg p-4 bg-white">
+            <h3 className="text-[14px] font-semibold text-[#262626] mb-3">规则概览</h3>
+            <dl className="grid grid-cols-1 gap-3 text-[13px]">
+              <div>
+                <dt className="text-[11px] text-[#8c8c8c] mb-0.5">展开关系对</dt>
+                <dd className="font-medium text-[#262626]">{pairCount} 对</dd>
+              </div>
+              <div>
+                <dt className="text-[11px] text-[#8c8c8c] mb-0.5">实际生效</dt>
+                <dd className="font-medium text-brand-600">
+                  {effectiveCount} / {pairStatuses.length} 对
                 </dd>
               </div>
-            )}
-            <div className="flex">
-              <dt className="w-24 text-[#8c8c8c]">展开关系对</dt>
-              <dd>{countRulePairs(rule)} 对</dd>
-            </div>
-            <div className="flex">
-              <dt className="w-24 text-[#8c8c8c]">创建时间</dt>
-              <dd>{rule.createdAt.replace('T', ' ').slice(0, 19)}</dd>
-            </div>
-            {rule.priority != null && (
-              <div className="flex">
-                <dt className="w-24 text-[#8c8c8c]">优先级</dt>
-                <dd>{rule.priority}</dd>
+              {rule.priority != null && (
+                <div>
+                  <dt className="text-[11px] text-[#8c8c8c] mb-0.5">优先级</dt>
+                  <dd className="font-medium text-[#262626]">{rule.priority}</dd>
+                </div>
+              )}
+              <div>
+                <dt className="text-[11px] text-[#8c8c8c] mb-0.5">创建时间</dt>
+                <dd className="text-[#595959]">{rule.createdAt.replace('T', ' ').slice(0, 19)}</dd>
               </div>
-            )}
-          </dl>
-        </section>
+              <div>
+                <dt className="text-[11px] text-[#8c8c8c] mb-0.5">最近更新</dt>
+                <dd className="text-[#595959]">{rule.updatedAt.replace('T', ' ').slice(0, 19)}</dd>
+              </div>
+              {rule.createdBy && (
+                <div>
+                  <dt className="text-[11px] text-[#8c8c8c] mb-0.5">创建人</dt>
+                  <dd className="text-[#595959]">{rule.createdBy}</dd>
+                </div>
+              )}
+            </dl>
+          </section>
+
+          {isInter ? (
+            <>
+              <div className="xl:col-span-5">
+                <RuleDetailMemberPanel title="规则对象（左）" members={rule.sideA} variant="brand" />
+              </div>
+              <div className="xl:col-span-4">
+                <RuleDetailMemberPanel
+                  title="限制对象（右）"
+                  members={rule.sideB ?? []}
+                  variant="orange"
+                  emptyText="未配置限制对象"
+                />
+              </div>
+            </>
+          ) : (
+            <div className="xl:col-span-9">
+              <RuleDetailMemberPanel title="组内成员" members={rule.sideA} variant="brand" />
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="px-4 pb-4">
-        <h4 className="text-[13px] font-medium mb-2">本规则关系对生效状态</h4>
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <h4 className="text-[13px] font-medium text-[#262626]">本规则关系对生效状态</h4>
+          <span className="text-[12px] text-[#8c8c8c]">共 {pairStatuses.length} 对</span>
+        </div>
         <div className="border border-[#e8e8e8] rounded overflow-hidden">
           <table className="table">
             <thead>
@@ -1770,6 +1919,7 @@ function ObjectPickerField({
   instances,
   value,
   onChange,
+  error,
 }: {
   label: string;
   accent: 'brand' | 'orange';
@@ -1777,6 +1927,7 @@ function ObjectPickerField({
   instances: PromoInstance[];
   value: RuleMember[];
   onChange: (members: RuleMember[]) => void;
+  error?: string;
 }) {
   const [open, setOpen] = useState(false);
   const remove = (id: string) => onChange(value.filter(m => m.refId !== id));
@@ -1801,7 +1952,11 @@ function ObjectPickerField({
 
   return (
     <>
-      <div className="border border-[#e8e8e8] rounded bg-white">
+      <div
+        className={`border rounded bg-white ${
+          error ? 'border-rose-300 ring-1 ring-rose-100' : 'border-[#e8e8e8]'
+        }`}
+      >
         <div className="px-3 py-2.5 border-b border-[#f0f0f0] flex items-center justify-between gap-2">
           <div className="min-w-0">
             <div className="text-[13px] font-medium text-[#262626]">{label}</div>
@@ -1846,6 +2001,7 @@ function ObjectPickerField({
           </button>
         )}
       </div>
+      <FormFieldError message={error} />
 
       <ObjectPickerModal
         open={open}
@@ -1863,21 +2019,52 @@ function ObjectPickerField({
   );
 }
 
+type FormValidationField = 'name' | 'sideA' | 'sideB';
+
+interface FormValidationIssue {
+  field: FormValidationField;
+  message: string;
+}
+
 function getFormValidationIssues(
   draft: Partial<SpecialRule>,
   sideA: RuleMember[],
   sideB: RuleMember[],
   isIntra: boolean
-): string[] {
-  const issues: string[] = [];
-  if (!draft.name?.trim()) issues.push('请填写规则名称');
-  if (sideA.length === 0) {
-    issues.push(isIntra ? '请选择至少 2 个组内对象' : '请选择左侧规则对象');
-  } else if (isIntra && sideA.length < 2) {
-    issues.push('组内关系至少选择 2 个对象');
+): FormValidationIssue[] {
+  const issues: FormValidationIssue[] = [];
+  if (!draft.name?.trim()) {
+    issues.push({ field: 'name', message: '请填写规则名称' });
   }
-  if (!isIntra && sideB.length === 0) issues.push('请选择右侧限制对象');
+  if (sideA.length === 0) {
+    issues.push({
+      field: 'sideA',
+      message: isIntra ? '请选择至少 2 个组内对象' : '请选择左侧规则对象',
+    });
+  } else if (isIntra && sideA.length < 2) {
+    issues.push({ field: 'sideA', message: '组内关系至少选择 2 个对象' });
+  }
+  if (!isIntra && sideB.length === 0) {
+    issues.push({ field: 'sideB', message: '请选择右侧限制对象' });
+  }
   return issues;
+}
+
+function getFieldValidationMessage(
+  issues: FormValidationIssue[],
+  field: FormValidationField
+): string | undefined {
+  return issues.find(issue => issue.field === field)?.message;
+}
+
+function FormFieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return (
+    <p className="mt-1.5 text-[12px] text-rose-600 flex items-start gap-1 leading-relaxed">
+      <AlertTriangle size={12} className="shrink-0 mt-0.5" />
+      <span>{message}</span>
+    </p>
+  );
 }
 
 function RuleForm({
@@ -1908,14 +2095,25 @@ function RuleForm({
   const interaction = draft.interaction ?? InteractionType.MUTEX;
   const validationIssues = getFormValidationIssues(draft, sideA, sideB, isIntra);
   const ready = validationIssues.length === 0;
-  const [saveHint, setSaveHint] = useState<string | null>(null);
+  const [attemptedSave, setAttemptedSave] = useState(false);
+  const [actionShake, setActionShake] = useState(false);
+  const [actionPulse, setActionPulse] = useState(false);
+
+  const nameError = getFieldValidationMessage(validationIssues, 'name');
+  const sideAError = getFieldValidationMessage(validationIssues, 'sideA');
+  const sideBError = getFieldValidationMessage(validationIssues, 'sideB');
+  const showFooterHint = !ready || attemptedSave;
 
   const handleSaveClick = (status: SpecialRuleStatus) => {
     if (!ready) {
-      setSaveHint(validationIssues.join('；'));
+      setAttemptedSave(true);
+      setActionShake(true);
+      setActionPulse(true);
+      window.setTimeout(() => setActionShake(false), 450);
+      window.setTimeout(() => setActionPulse(false), 1200);
       return;
     }
-    setSaveHint(null);
+    setAttemptedSave(false);
     onRequestSave(status);
   };
 
@@ -1934,10 +2132,14 @@ function RuleForm({
     updatedBy: '',
   };
 
-  const pairCount = ready ? countRulePairs(previewRule) : 0;
+  const pairCount = countRulePairs(previewRule);
   const previewImpact = ready
     ? detectSaveImpact(existingRules, previewRule, priorityEnabled, INSTANCE_TYPE_MAP)
     : { overrides: [], ineffective: [] };
+
+  useEffect(() => {
+    if (ready) setAttemptedSave(false);
+  }, [ready]);
 
   return (
     <div className="page-card h-full flex flex-col overflow-hidden">
@@ -1960,14 +2162,18 @@ function RuleForm({
         <div className="flex-1 overflow-auto p-5 space-y-6 min-w-0">
           <FormSection index={1} title="规则名称">
             <input
-              className="w-full max-w-md border border-[#d9d9d9] rounded px-3 py-2 text-[13px] focus:outline-none focus:border-brand-500"
+              className={`w-full max-w-md border rounded px-3 py-2 text-[13px] focus:outline-none ${
+                nameError
+                  ? 'border-rose-400 focus:border-rose-500'
+                  : 'border-[#d9d9d9] focus:border-brand-500'
+              }`}
               placeholder="如：满减与平台券互斥"
               value={draft.name ?? ''}
               onChange={e => {
                 setDraft(d => ({ ...d, name: e.target.value }));
-                setSaveHint(null);
               }}
             />
+            <FormFieldError message={nameError} />
           </FormSection>
 
           <FormSection index={2} title="关系范围">
@@ -2001,9 +2207,9 @@ function RuleForm({
                 categories={categories}
                 instances={instances}
                 value={sideA}
+                error={sideAError}
                 onChange={m => {
                   setDraft(d => ({ ...d, sideA: m }));
-                  setSaveHint(null);
                 }}
               />
               {!isIntra && (
@@ -2013,9 +2219,9 @@ function RuleForm({
                   categories={categories}
                   instances={instances}
                   value={sideB}
+                  error={sideBError}
                   onChange={m => {
                     setDraft(d => ({ ...d, sideB: m }));
-                    setSaveHint(null);
                   }}
                 />
               )}
@@ -2077,9 +2283,20 @@ function RuleForm({
           </div>
 
           {/* 关系对数量 */}
-          <div className="bg-white border border-[#e8e8e8] rounded p-3 flex items-baseline gap-2">
-            <span className="text-[22px] font-semibold text-brand-600">{pairCount}</span>
-            <span className="text-[12px] text-[#8c8c8c]">对关系将建立</span>
+          <div className="bg-white border border-[#e8e8e8] rounded p-3">
+            <div className="flex items-baseline gap-2">
+              <span className="text-[22px] font-semibold text-brand-600">{pairCount}</span>
+              <span className="text-[12px] text-[#8c8c8c]">对关系将建立</span>
+            </div>
+            {pairCount === 0 && sideA.length > 0 && (
+              <p className="text-[11px] text-[#8c8c8c] mt-1.5 leading-relaxed">
+                {isIntra
+                  ? '组内至少选择 2 个对象才会产生关系对'
+                  : sideB.length === 0
+                    ? '请选择右侧限制对象后计算关系对'
+                    : '当前选择无法展开关系对'}
+              </p>
+            )}
           </div>
 
           {/* 覆盖 / 不生效（仅启用时） */}
@@ -2127,59 +2344,98 @@ function RuleForm({
         </aside>
       </div>
 
-      {/* 底部操作栏 · 始终可见 */}
-      <div className="shrink-0 border-t border-[#e8e8e8] bg-white px-4 py-2.5 flex items-center justify-between gap-4 shadow-[0_-1px_0_#f0f0f0]">
-        <div className="min-w-0 flex-1">
-          {saveHint ? (
-            <p className="text-[12px] text-amber-700 flex items-start gap-1.5">
-              <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-              <span>{saveHint}</span>
-            </p>
-          ) : ready ? (
-            <p className="text-[12px] text-[#595959] flex items-center gap-1.5">
-              <CheckCircle2 size={14} className="text-brand-600 shrink-0" />
-              <span>
-                {isNew
-                  ? '配置完整。「保存」为停用草稿；「保存并启用」将立即生效'
-                  : '配置完整，可以保存'}
-              </span>
-            </p>
-          ) : (
-            <p className="text-[12px] text-[#8c8c8c] flex items-center gap-1.5 min-w-0">
-              <AlertTriangle size={14} className="text-amber-500 shrink-0" />
-              <span className="truncate">还需完成：{validationIssues.join('、')}</span>
-            </p>
-          )}
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {isNew ? (
-            <>
-              <button
-                type="button"
-                className={`btn btn--primary ${ready ? '' : 'opacity-70'}`}
-                onClick={() => handleSaveClick('DISABLED')}
-                title="保存为停用状态，不会立即生效"
-              >
-                保存
-              </button>
-              <button
-                type="button"
-                className={`btn btn--default border-brand-200 text-brand-600 hover:bg-brand-50 ${ready ? '' : 'opacity-70'}`}
-                onClick={() => handleSaveClick('ENABLED')}
-                title="保存并立即启用，可能影响线上规则"
-              >
-                保存并启用
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              className={`btn btn--primary ${ready ? '' : 'opacity-70'}`}
-              onClick={() => handleSaveClick(draft.status === 'ENABLED' ? 'ENABLED' : 'DISABLED')}
+      {/* 底部操作栏 · 提示紧贴按钮（P0/P1） */}
+      <div className="shrink-0 border-t border-[#e8e8e8] bg-[#fafafa] px-4 py-3 flex justify-end shadow-[0_-1px_0_#f0f0f0]">
+        <div className="flex flex-col items-end gap-2 max-w-full">
+          {showFooterHint && (
+            <div
+              className={`rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-800 max-w-md ${
+                attemptedSave ? 'rule-form-hint--emphasized' : ''
+              }`}
+              role="alert"
             >
-              保存
-            </button>
+              <div className="flex items-start gap-1.5 justify-end">
+                <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                <div className="text-right">
+                  <div className="font-medium">
+                    还差 {validationIssues.length} 项未完成
+                    {attemptedSave ? '，请补全后再保存' : ''}
+                  </div>
+                  <ul className="mt-1 space-y-0.5 text-[11px] text-amber-700 list-none">
+                    {validationIssues.map(issue => (
+                      <li key={`${issue.field}-${issue.message}`}>· {issue.message}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
           )}
+
+          {ready && (
+            <div className="text-right max-w-[220px] hidden sm:block">
+              <p className="text-[12px] font-medium text-brand-700 flex items-center justify-end gap-1">
+                <CheckCircle2 size={14} className="shrink-0" />
+                配置完整
+              </p>
+              {isNew && (
+                <p className="text-[11px] text-[#8c8c8c] mt-0.5 leading-snug">
+                  请确认下方按钮含义后保存
+                </p>
+              )}
+            </div>
+          )}
+
+          <div
+            className={`flex items-end gap-2 ${actionShake ? 'rule-form-actions--shake' : ''} ${
+              actionPulse ? 'rule-form-actions--pulse' : ''
+            }`}
+          >
+            {isNew ? (
+              <>
+                <div className="flex flex-col items-stretch gap-1">
+                  <button
+                    type="button"
+                    className={`btn btn--primary min-w-[88px] ${ready ? '' : 'opacity-70'}`}
+                    onClick={() => handleSaveClick('DISABLED')}
+                  >
+                    保存
+                  </button>
+                  <span className="text-[10px] text-center text-[#8c8c8c] leading-none px-0.5">
+                    停用草稿
+                  </span>
+                </div>
+                <div className="flex flex-col items-stretch gap-1">
+                  <button
+                    type="button"
+                    className={`btn btn--default border-brand-300 text-brand-600 hover:bg-brand-50 min-w-[104px] ${
+                      ready ? '' : 'opacity-70'
+                    }`}
+                    onClick={() => handleSaveClick('ENABLED')}
+                  >
+                    保存并启用
+                  </button>
+                  <span className="text-[10px] text-center text-brand-600 font-medium leading-none px-0.5">
+                    立即生效
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-stretch gap-1">
+                <button
+                  type="button"
+                  className={`btn btn--primary min-w-[88px] ${ready ? '' : 'opacity-70'}`}
+                  onClick={() => handleSaveClick(draft.status === 'ENABLED' ? 'ENABLED' : 'DISABLED')}
+                >
+                  保存
+                </button>
+                {ready && (
+                  <span className="text-[10px] text-center text-[#8c8c8c] leading-none">
+                    {draft.status === 'ENABLED' ? '保存后立即生效' : '保存为停用状态'}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

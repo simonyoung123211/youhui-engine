@@ -1,4 +1,4 @@
-import { PromoGroup } from '../types';
+import { PromoGroup, CALC_ORDER_EXCLUDED_GROUPS } from '../types';
 import { CalcOrderGroupFilter } from './calcOrderReorder';
 
 export interface CalcOrderListUrlState {
@@ -19,7 +19,10 @@ const KEYS = {
   adjusted: 'co_adj',
 } as const;
 
-const VALID_GROUPS = new Set<CalcOrderGroupFilter>(['ALL', ...Object.values(PromoGroup)]);
+const VALID_GROUPS = new Set<CalcOrderGroupFilter>([
+  'ALL',
+  ...Object.values(PromoGroup).filter(g => !CALC_ORDER_EXCLUDED_GROUPS.includes(g)),
+]);
 
 export function parseCalcOrderListUrl(search: string): CalcOrderListUrlState {
   const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
