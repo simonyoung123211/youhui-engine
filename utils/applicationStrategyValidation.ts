@@ -39,7 +39,15 @@ export function validateApplicationStrategy(
   if (gbLimit !== config.miniProgram.maxGroupBuyVouchersPerOrder) {
     issues.push({
       field: 'miniProgram.maxGroupBuyVouchersPerOrder',
-      message: '每单使用团购券限制须在 1–10 张之间',
+      message: '每单使用团购券限制须在 1–5 张之间',
+    });
+  }
+
+  const hiddenRedeem = config.miniProgram.couponHiddenCategoryRedeem;
+  if (hiddenRedeem.enabled && hiddenRedeem.enabledCouponTypes.length === 0) {
+    issues.push({
+      field: 'miniProgram.couponHiddenCategoryRedeem.enabledCouponTypes',
+      message: '开启「优惠券核销隐藏商品」时，请至少勾选一种启用的券类型',
     });
   }
 

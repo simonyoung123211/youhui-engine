@@ -2,6 +2,7 @@ import React from 'react';
 import {
   ConfigSection,
   StrategyCheckboxRow,
+  StrategyCheckGrid,
   StrategyRadioGroup,
   StrategySubGroup,
 } from './ConfigSection';
@@ -14,10 +15,13 @@ import {
   ApplicationStrategyConfig,
   AfterAddToCartBehavior,
   EstimatedPriceDisplayMode,
+  HiddenRedeemCouponTypeId,
 } from '../../types/applicationStrategy';
 import {
   ESTIMATED_PRICE_CALC_RULES,
   getSingleItemActivityCategories,
+  GROUP_BUY_HIDDEN_REDEEM_COUPON_OPTIONS,
+  QMAI_HIDDEN_REDEEM_COUPON_OPTIONS,
 } from '../../data/defaultApplicationStrategy';
 
 interface MiniProgramTabProps {
@@ -41,6 +45,27 @@ export function MiniProgramTab({
     patch: Partial<ApplicationStrategyConfig['miniProgram']['estimatedPrice']>
   ) => {
     onChange({ ...config, estimatedPrice: { ...config.estimatedPrice, ...patch } });
+  };
+
+  const hiddenRedeemDisabled = sectionDisabled(config.couponHiddenCategoryRedeem.enabled);
+
+  const toggleHiddenRedeemCouponType = (id: HiddenRedeemCouponTypeId, checked: boolean) => {
+    const current = new Set(config.couponHiddenCategoryRedeem.enabledCouponTypes);
+    if (checked) current.add(id);
+    else current.delete(id);
+    const next = [
+      ...QMAI_HIDDEN_REDEEM_COUPON_OPTIONS,
+      ...GROUP_BUY_HIDDEN_REDEEM_COUPON_OPTIONS,
+    ]
+      .map(opt => opt.id)
+      .filter(typeId => current.has(typeId));
+    onChange({
+      ...config,
+      couponHiddenCategoryRedeem: {
+        ...config.couponHiddenCategoryRedeem,
+        enabledCouponTypes: next,
+      },
+    });
   };
 
   return (
@@ -67,6 +92,12 @@ export function MiniProgramTab({
             checked={config.estimatedPrice.hideLabelDineIn}
             disabled={sectionDisabled(estimatedEnabled)}
             onChange={hideLabelDineIn => patchEstimated({ hideLabelDineIn })}
+          />
+          <StrategyCheckboxRow
+            label="小程序外带：商品列表页隐藏预估到手价标签"
+            checked={config.estimatedPrice.hideLabelPack}
+            disabled={sectionDisabled(estimatedEnabled)}
+            onChange={hideLabelPack => patchEstimated({ hideLabelPack })}
           />
           <StrategyCheckboxRow
             label="小程序外卖：商品列表页隐藏预估到手价标签"
@@ -135,6 +166,48 @@ export function MiniProgramTab({
         onChange={orderOptimalDiscount => onChange({ ...config, orderOptimalDiscount })}
       />
 
+      <ConfigSection
+        title="优惠券核销隐藏商品"
+        description="控制小程序点餐时，商品型券能否兑换「隐藏商品」。默认关闭。"
+        enabled={config.couponHiddenCategoryRedeem.enabled}
+        onEnabledChange={enabled =>
+          onChange({
+            ...config,
+            couponHiddenCategoryRedeem: { ...config.couponHiddenCategoryRedeem, enabled },
+          })
+        }
+        readOnly={readOnly}
+        sectionId="coupon-hidden-category-redeem"
+      >
+        <div className="strategy-note strategy-note--info">
+          隐藏商品：商品中心分类属性为「仅后台展示」的商品。商品所属全部分类均为「仅后台展示」时，才判定为隐藏商品（如商品 A 只挂在「仅后台展示」分类下）。开启后，普通点餐菜单仍不展示；顾客持有效商品型券时，仅可在优惠券助手的券内选品中看到并加购。若用户撤销该隐藏商品所适用的优惠券，已加购的隐藏商品会同步从购物车剔除。
+        </div>
+
+        <StrategySubGroup title="启用的券类型">
+          <p className="strategy-row__hint mb-2">
+            商家可自定义；默认全选。仅勾选的券类型可兑换隐藏商品。
+          </p>
+          <div className="strategy-check-group">
+            <div className="strategy-check-group__label">企迈券</div>
+            <StrategyCheckGrid
+              options={QMAI_HIDDEN_REDEEM_COUPON_OPTIONS}
+              selectedIds={config.couponHiddenCategoryRedeem.enabledCouponTypes}
+              disabled={hiddenRedeemDisabled}
+              onToggle={toggleHiddenRedeemCouponType}
+            />
+          </div>
+          <div className="strategy-check-group">
+            <div className="strategy-check-group__label">团购券</div>
+            <StrategyCheckGrid
+              options={GROUP_BUY_HIDDEN_REDEEM_COUPON_OPTIONS}
+              selectedIds={config.couponHiddenCategoryRedeem.enabledCouponTypes}
+              disabled={hiddenRedeemDisabled}
+              onToggle={toggleHiddenRedeemCouponType}
+            />
+          </div>
+        </StrategySubGroup>
+      </ConfigSection>
+
       <div className="strategy-section-heading">基础规则配置</div>
 
       <div className={`strategy-config-block${readOnly ? ' is-readonly' : ''}`}>
@@ -159,13 +232,13 @@ export function MiniProgramTab({
           <div className="strategy-row__main">
             <div className="strategy-row__label">每单使用团购券限制</div>
             <p className="strategy-row__hint">
-              限制小程序堂食/外带下单时，每笔订单可使用的平台团购券（套餐券/次券等）数量上限，默认为 5 张，可设置范围 1–10 张。
+              限制小程序堂食/外带下单时，每笔订单可使用的平台团购券（套餐券/次券等）数量上限，默认为 5 张，可设置范围 1–5 张。
             </p>
           </div>
           <CouponLimitStepper
             value={config.maxGroupBuyVouchersPerOrder}
             min={1}
-            max={10}
+            max={5}
             fallback={5}
             disabled={readOnly}
             ariaLabel="每单团购券上限"

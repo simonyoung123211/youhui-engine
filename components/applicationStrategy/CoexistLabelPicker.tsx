@@ -25,12 +25,12 @@ export function CoexistLabelPicker({
   };
 
   return (
-    <div className={`strategy-coexist-grid${disabled ? ' is-disabled' : ''}`}>
+    <div className={`strategy-check-grid${disabled ? ' is-disabled' : ''}`}>
       {categories.map(cat => {
         const id = cat.id as SingleItemActivityCategoryId;
         const checked = selectedIds.includes(id);
         return (
-          <label key={cat.id} className="strategy-coexist-item">
+          <label key={cat.id} className="strategy-check-grid__item">
             <input
               type="checkbox"
               checked={checked}

@@ -30,19 +30,50 @@ export interface OrderOptimalDiscountPolicy {
 
 export interface MiniProgramEstimatedPrice {
   enabled: boolean;
+  /** 小程序堂食（店内就餐）商品列表隐藏预估到手价标签 */
   hideLabelDineIn: boolean;
+  /** 小程序外带（打包带走）商品列表隐藏预估到手价标签 */
+  hideLabelPack: boolean;
+  /** 小程序外卖商品列表隐藏预估到手价标签 */
   hideLabelTakeout: boolean;
   displayMode: EstimatedPriceDisplayMode;
   coexistCategoryIds: SingleItemActivityCategoryId[];
   afterAddToCart: AfterAddToCartBehavior;
 }
 
+/** 企迈券：可启用兑换隐藏商品的券类型 */
+export type QmaiHiddenRedeemCouponType =
+  | 'qmai_product'
+  | 'qmai_exchange'
+  | 'qmai_times'
+  | 'qmai_reduce_to';
+
+/** 团购券：可启用兑换隐藏商品的券类型 */
+export type GroupBuyHiddenRedeemCouponType = 'group_combo' | 'group_times';
+
+export type HiddenRedeemCouponTypeId =
+  | QmaiHiddenRedeemCouponType
+  | GroupBuyHiddenRedeemCouponType;
+
+/** 商品型券核销时是否允许兑换「隐藏商品」 */
+export interface CouponHiddenCategoryRedeemPolicy {
+  /** 默认关闭 */
+  enabled: boolean;
+  /**
+   * 启用的券类型（商家可自定义；默认全选）。
+   * 仅勾选类型可兑换隐藏商品。
+   */
+  enabledCouponTypes: HiddenRedeemCouponTypeId[];
+}
+
 export interface MiniProgramStrategy {
   estimatedPrice: MiniProgramEstimatedPrice;
   orderOptimalDiscount: OrderOptimalDiscountPolicy;
+  /** 优惠券核销隐藏商品：是否允许商品型券兑换隐藏商品 */
+  couponHiddenCategoryRedeem: CouponHiddenCategoryRedeemPolicy;
   /** 每单可核销优惠券上限，1–50，默认 30 */
   maxCouponsPerOrder: number;
-  /** 每单可使用团购券上限（小程序堂食/外带下单），1–10，默认 5 */
+  /** 每单可使用团购券上限（小程序堂食/外带下单），1–5，默认 5 */
   maxGroupBuyVouchersPerOrder: number;
 }
 

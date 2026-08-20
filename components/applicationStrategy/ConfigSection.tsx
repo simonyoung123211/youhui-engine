@@ -121,6 +121,45 @@ export function StrategyCheckboxRow({
   );
 }
 
+/** 短标签多选：横向自适应网格，与「可共存促销活动」一致 */
+interface StrategyCheckGridOption {
+  id: string;
+  label: string;
+}
+
+interface StrategyCheckGridProps {
+  options: StrategyCheckGridOption[];
+  selectedIds: string[];
+  onToggle: (id: string, checked: boolean) => void;
+  disabled?: boolean;
+}
+
+export function StrategyCheckGrid({
+  options,
+  selectedIds,
+  onToggle,
+  disabled,
+}: StrategyCheckGridProps) {
+  return (
+    <div className={`strategy-check-grid${disabled ? ' is-disabled' : ''}`}>
+      {options.map(opt => {
+        const checked = selectedIds.includes(opt.id);
+        return (
+          <label key={opt.id} className="strategy-check-grid__item">
+            <input
+              type="checkbox"
+              checked={checked}
+              disabled={disabled}
+              onChange={e => onToggle(opt.id, e.target.checked)}
+            />
+            <span>{opt.label}</span>
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
 interface StrategyRadioGroupProps {
   label: string;
   hint?: string;

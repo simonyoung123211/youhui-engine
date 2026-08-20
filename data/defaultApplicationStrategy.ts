@@ -1,6 +1,7 @@
 import { PromotionCategory, PromoGroup, PromoScope } from '../types';
 import {
   ApplicationStrategyConfig,
+  HiddenRedeemCouponTypeId,
   LegacyBasicStrategy,
   LegacyMiniProgramBestCombo,
   OrderOptimizationMode,
@@ -15,6 +16,34 @@ export const SINGLE_ITEM_ACTIVITY_CATEGORY_IDS: SingleItemActivityCategoryId[] =
   'act_item_fixed_price',
 ];
 
+/** 优惠券核销隐藏商品：可启用的全部券类型（默认全选） */
+export const ALL_HIDDEN_REDEEM_COUPON_TYPES: HiddenRedeemCouponTypeId[] = [
+  'qmai_product',
+  'qmai_exchange',
+  'qmai_times',
+  'qmai_reduce_to',
+  'group_combo',
+  'group_times',
+];
+
+export const QMAI_HIDDEN_REDEEM_COUPON_OPTIONS: {
+  id: HiddenRedeemCouponTypeId;
+  label: string;
+}[] = [
+  { id: 'qmai_product', label: '商品券' },
+  { id: 'qmai_exchange', label: '兑换券' },
+  { id: 'qmai_times', label: '次券' },
+  { id: 'qmai_reduce_to', label: '减至券' },
+];
+
+export const GROUP_BUY_HIDDEN_REDEEM_COUPON_OPTIONS: {
+  id: HiddenRedeemCouponTypeId;
+  label: string;
+}[] = [
+  { id: 'group_combo', label: '套餐券' },
+  { id: 'group_times', label: '次券' },
+];
+
 export const ESTIMATED_PRICE_CALC_RULES =
   '固定试算适用的单品促销与当前账号真实持有、且单独购买 1 件该 SKU 时可用的优惠券；试算不产生选券状态，不占用、不核销优惠券。与订单选券策略完全解耦。';
 
@@ -23,6 +52,7 @@ export const DEFAULT_APPLICATION_STRATEGY: ApplicationStrategyConfig = {
     estimatedPrice: {
       enabled: true,
       hideLabelDineIn: false,
+      hideLabelPack: false,
       hideLabelTakeout: false,
       displayMode: 'COMPATIBLE',
       coexistCategoryIds: ['act_item_limited_disc', 'act_item_m_n_disc', 'act_item_bogo'],
@@ -30,6 +60,10 @@ export const DEFAULT_APPLICATION_STRATEGY: ApplicationStrategyConfig = {
     },
     orderOptimalDiscount: {
       couponAutoApplyStage: 'CART_AUTO_APPLY',
+    },
+    couponHiddenCategoryRedeem: {
+      enabled: false,
+      enabledCouponTypes: [...ALL_HIDDEN_REDEEM_COUPON_TYPES],
     },
     maxCouponsPerOrder: 30,
     maxGroupBuyVouchersPerOrder: 5,
@@ -149,6 +183,9 @@ export function hydrateApplicationStrategy(
 
   const orderOptimizationMode = resolveOrderOptimizationMode(rawMp);
 
+  const rawEnabledTypes = rawMp?.couponHiddenCategoryRedeem?.enabledCouponTypes;
+  const enabledCouponTypes = normalizeHiddenRedeemCouponTypes(rawEnabledTypes);
+
   return {
     miniProgram: {
       estimatedPrice: {
@@ -157,6 +194,9 @@ export function hydrateApplicationStrategy(
         hideLabelDineIn:
           rawMp?.estimatedPrice?.hideLabelDineIn ??
           defaults.miniProgram.estimatedPrice.hideLabelDineIn,
+        hideLabelPack:
+          rawMp?.estimatedPrice?.hideLabelPack ??
+          defaults.miniProgram.estimatedPrice.hideLabelPack,
         hideLabelTakeout:
           rawMp?.estimatedPrice?.hideLabelTakeout ??
           defaults.miniProgram.estimatedPrice.hideLabelTakeout,
@@ -170,6 +210,12 @@ export function hydrateApplicationStrategy(
           defaults.miniProgram.estimatedPrice.afterAddToCart,
       },
       orderOptimalDiscount: { couponAutoApplyStage: orderOptimizationMode },
+      couponHiddenCategoryRedeem: {
+        enabled:
+          rawMp?.couponHiddenCategoryRedeem?.enabled ??
+          defaults.miniProgram.couponHiddenCategoryRedeem.enabled,
+        enabledCouponTypes,
+      },
       maxCouponsPerOrder: clampCouponLimit(
         rawMp?.maxCouponsPerOrder ??
           raw.basic?.maxCouponsPerOrder ??
@@ -195,6 +241,19 @@ export function hydrateApplicationStrategy(
   };
 }
 
+/** 旧配置缺字段时按全选补全；非法 ID 过滤；显式空数组保留为空（开启态由校验拦截） */
+export function normalizeHiddenRedeemCouponTypes(
+  raw: unknown
+): HiddenRedeemCouponTypeId[] {
+  if (!Array.isArray(raw)) return [...ALL_HIDDEN_REDEEM_COUPON_TYPES];
+  const set = new Set(
+    raw.filter((id): id is HiddenRedeemCouponTypeId =>
+      ALL_HIDDEN_REDEEM_COUPON_TYPES.includes(id as HiddenRedeemCouponTypeId)
+    )
+  );
+  return ALL_HIDDEN_REDEEM_COUPON_TYPES.filter(id => set.has(id));
+}
+
 export function clampCouponLimit(value: number): number {
   if (!Number.isFinite(value)) return 30;
   return Math.min(50, Math.max(1, Math.round(value)));
@@ -202,7 +261,7 @@ export function clampCouponLimit(value: number): number {
 
 export function clampGroupBuyVoucherLimit(value: number): number {
   if (!Number.isFinite(value)) return 5;
-  return Math.min(10, Math.max(1, Math.round(value)));
+  return Math.min(5, Math.max(1, Math.round(value)));
 }
 
 export function getOrderOptimizationLabel(mode: OrderOptimizationMode): string {

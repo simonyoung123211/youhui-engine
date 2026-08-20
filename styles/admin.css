@@ -2133,10 +2133,52 @@ button, input, select { font: inherit; }
   color: var(--text-secondary);
 }
 
+/* 短标签多选网格（券类型、可共存促销活动等） */
+.strategy-check-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+}
+
+.strategy-check-grid.is-disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.strategy-check-grid__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+  padding: 2px 0;
+}
+
+.strategy-check-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.strategy-check-group + .strategy-check-group {
+  margin-top: 12px;
+}
+
+.strategy-check-group__label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #8c8c8c;
+}
+
+/* 兼容旧类名 */
 .strategy-coexist-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 8px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
 }
 
 .strategy-coexist-grid.is-disabled {
@@ -2145,12 +2187,13 @@ button, input, select { font: inherit; }
 }
 
 .strategy-coexist-item {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   font-size: 13px;
   color: var(--text-primary);
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .strategy-activity-table-wrap {
