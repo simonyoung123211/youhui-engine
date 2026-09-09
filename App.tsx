@@ -11,7 +11,6 @@ import { RuleGuide } from './components/RuleGuide';
 import { SpecialRuleManager } from './components/SpecialRuleManager';
 import { PriorityManager } from './components/PriorityManager';
 import { ApplicationStrategyPage, hydrateApplicationStrategy } from './components/ApplicationStrategyPage';
-import { StackingPilotPage } from './components/StackingPilotPage';
 import { ApplicationStrategyConfig } from './types/applicationStrategy';
 import { StackingPilotConfig } from './types/stackingPilot';
 import { hydrateStackingPilot } from './data/defaultStackingPilot';
@@ -33,15 +32,13 @@ import {
   ChevronDown,
   ChevronRight,
   Store,
-  Layers,
 } from 'lucide-react';
 
-type ActiveTab = 'builder' | 'priority' | 'instances' | 'scenario' | 'stacking';
+type ActiveTab = 'builder' | 'priority' | 'instances' | 'scenario';
 
 const SHARE_MUTEX_CHILDREN: { id: ActiveTab; label: string; icon: typeof Settings }[] = [
   { id: 'builder', label: '默认规则', icon: Settings },
   { id: 'instances', label: '特例规则', icon: GitMerge },
-  { id: 'stacking', label: '折上折叠加', icon: Layers },
 ];
 
 const TOP_LEVEL_NAV: { id: ActiveTab; label: string; icon: typeof ListOrdered }[] = [
@@ -80,8 +77,7 @@ const App: React.FC = () => {
   const [shareMutexOpen, setShareMutexOpen] = useState(true);
   const [ruleGuideOpen, setRuleGuideOpen] = useState(false);
 
-  const isShareMutexChild =
-    activeTab === 'builder' || activeTab === 'instances' || activeTab === 'stacking';
+  const isShareMutexChild = activeTab === 'builder' || activeTab === 'instances';
 
   useEffect(() => {
     if (isShareMutexChild) setShareMutexOpen(true);
@@ -288,20 +284,9 @@ const App: React.FC = () => {
                     dbInstances={DATABASE_INSTANCES}
                     onSave={() => showDemoSaveToast('特例规则')}
                     onViewDefaultRules={() => setActiveTab('builder')}
-                />
-            </div>
-            )}
-
-            {activeTab === 'stacking' && (
-            <div className="animate-fade-in h-full overflow-hidden">
-                <StackingPilotPage
-                  config={stackingPilot}
-                  onConfigChange={setStackingPilot}
-                  categories={categories}
-                  onSave={() => showDemoSaveToast('折上折叠加')}
-                  onToast={showToast}
-                  onViewDefaultRules={() => setActiveTab('builder')}
-                  onViewCalcOrder={() => setActiveTab('priority')}
+                    stackingPilot={stackingPilot}
+                    onStackingPilotChange={setStackingPilot}
+                    onToast={showToast}
                 />
             </div>
             )}

@@ -42,6 +42,8 @@ import { VirtualList } from './VirtualList';
 import { PickerQuickSearch } from './PickerQuickSearch';
 import { SpecialRuleListTable } from './SpecialRuleListTable';
 import { SpecialRuleListChrome } from './SpecialRuleListChrome';
+import { StackingPilotModal } from './StackingPilotModal';
+import { StackingPilotConfig } from '../types/stackingPilot';
 import {
   toggleSort,
   usePaginatedSpecialRules,
@@ -114,6 +116,9 @@ interface SpecialRuleManagerProps {
   dbInstances: PromoInstance[];
   onSave?: () => void;
   onViewDefaultRules?: () => void;
+  stackingPilot: StackingPilotConfig;
+  onStackingPilotChange: (config: StackingPilotConfig) => void;
+  onToast?: (message: string) => void;
 }
 
 const INTERACTION_OPTIONS: { value: InteractionType; label: string; desc: string }[] = [
@@ -145,6 +150,9 @@ export const SpecialRuleManager: React.FC<SpecialRuleManagerProps> = ({
   dbInstances,
   onSave,
   onViewDefaultRules,
+  stackingPilot,
+  onStackingPilotChange,
+  onToast,
 }) => {
   const initialListState = readSpecialRuleListUrl();
   const [rules, setRules] = useState<SpecialRule[]>(() =>
@@ -172,6 +180,7 @@ export const SpecialRuleManager: React.FC<SpecialRuleManagerProps> = ({
   const [priorityEnabled, setPriorityEnabled] = useState(loadPriorityEnabled);
   const [priorityPanelOpen, setPriorityPanelOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
+  const [stackingPilotOpen, setStackingPilotOpen] = useState(false);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [actionConfirmOpen, setActionConfirmOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingRuleAction | null>(null);
@@ -654,7 +663,21 @@ export const SpecialRuleManager: React.FC<SpecialRuleManagerProps> = ({
         onOpenInspector={() => setView('inspector')}
         onOpenGuide={() => setGuideOpen(true)}
         onOpenPriorityPanel={() => setPriorityPanelOpen(true)}
+        onOpenStackingPilot={() => setStackingPilotOpen(true)}
+        stackingPilotEnabled={stackingPilot.pairs.some(p => p.enabled)}
         onCreate={openCreate}
+      />
+
+      <StackingPilotModal
+        open={stackingPilotOpen}
+        config={stackingPilot}
+        categories={categories}
+        onClose={() => setStackingPilotOpen(false)}
+        onSave={next => {
+          onStackingPilotChange(next);
+          setStackingPilotOpen(false);
+          onToast?.('折上折叠加已保存');
+        }}
       />
 
       <PriorityConfigPanel

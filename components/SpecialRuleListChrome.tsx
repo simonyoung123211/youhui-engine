@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, ChevronDown, Filter, Plus, RotateCcw, Search, Settings } from 'lucide-react';
+import { BookOpen, ChevronDown, Filter, Layers, Plus, RotateCcw, Search, Settings } from 'lucide-react';
 import { InteractionType } from '../types';
 import {
   SpecialRuleInteractionFilter,
@@ -37,6 +37,8 @@ export interface SpecialRuleListChromeProps {
   onOpenInspector: () => void;
   onOpenGuide: () => void;
   onOpenPriorityPanel: () => void;
+  onOpenStackingPilot: () => void;
+  stackingPilotEnabled: boolean;
   onCreate: () => void;
 }
 
@@ -73,6 +75,8 @@ export function SpecialRuleListChrome({
   onOpenInspector,
   onOpenGuide,
   onOpenPriorityPanel,
+  onOpenStackingPilot,
+  stackingPilotEnabled,
   onCreate,
 }: SpecialRuleListChromeProps) {
   return (
@@ -95,6 +99,11 @@ export function SpecialRuleListChrome({
           <button type="button" className="btn btn--default btn--icon" onClick={onOpenPriorityPanel}>
             <Settings size={14} />
             高级策略
+          </button>
+          <button type="button" className="btn btn--default btn--icon" onClick={onOpenStackingPilot}>
+            <Layers size={14} />
+            折上折叠加
+            {stackingPilotEnabled && <span className="btn-dot" aria-label="已开启" />}
           </button>
           <button type="button" className="btn btn--primary btn--icon" onClick={onCreate}>
             <Plus size={14} />
