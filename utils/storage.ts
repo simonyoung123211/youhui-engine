@@ -1,5 +1,6 @@
 import { RuleMatrix, InstanceRuleMap, PromoInstance } from '../types';
 import { ApplicationStrategyConfig } from '../types/applicationStrategy';
+import { StackingPilotConfig } from '../types/stackingPilot';
 
 const STORAGE_KEY = 'promo-demo-config-v2';
 /** 供消费者端 Demo 跨端口读取（localhost cookie 不区分端口） */
@@ -13,6 +14,7 @@ export interface DemoPersistedState {
   stackingStrategy: 'STATIC_PRIORITY' | 'OPERATION_ORDER';
   instances: PromoInstance[];
   applicationStrategy?: ApplicationStrategyConfig;
+  stackingPilot?: StackingPilotConfig;
 }
 
 /** 发布小程序应用策略摘要，供点餐优惠计算 Demo 读取 */

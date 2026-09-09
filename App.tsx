@@ -11,7 +11,10 @@ import { RuleGuide } from './components/RuleGuide';
 import { SpecialRuleManager } from './components/SpecialRuleManager';
 import { PriorityManager } from './components/PriorityManager';
 import { ApplicationStrategyPage, hydrateApplicationStrategy } from './components/ApplicationStrategyPage';
+import { StackingPilotPage } from './components/StackingPilotPage';
 import { ApplicationStrategyConfig } from './types/applicationStrategy';
+import { StackingPilotConfig } from './types/stackingPilot';
+import { hydrateStackingPilot } from './data/defaultStackingPilot';
 import { Toast } from './components/Toast';
 import { loadDemoState, saveDemoState } from './utils/storage';
 import {
@@ -30,13 +33,15 @@ import {
   ChevronDown,
   ChevronRight,
   Store,
+  Layers,
 } from 'lucide-react';
 
-type ActiveTab = 'builder' | 'priority' | 'instances' | 'scenario';
+type ActiveTab = 'builder' | 'priority' | 'instances' | 'scenario' | 'stacking';
 
 const SHARE_MUTEX_CHILDREN: { id: ActiveTab; label: string; icon: typeof Settings }[] = [
   { id: 'builder', label: '默认规则', icon: Settings },
   { id: 'instances', label: '特例规则', icon: GitMerge },
+  { id: 'stacking', label: '折上折叠加', icon: Layers },
 ];
 
 const TOP_LEVEL_NAV: { id: ActiveTab; label: string; icon: typeof ListOrdered }[] = [
@@ -65,6 +70,9 @@ const App: React.FC = () => {
   const [applicationStrategy, setApplicationStrategy] = useState<ApplicationStrategyConfig>(() =>
     hydrateApplicationStrategy(loadDemoState()?.applicationStrategy)
   );
+  const [stackingPilot, setStackingPilot] = useState<StackingPilotConfig>(() =>
+    hydrateStackingPilot(loadDemoState()?.stackingPilot)
+  );
 
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false });
   
@@ -72,15 +80,32 @@ const App: React.FC = () => {
   const [shareMutexOpen, setShareMutexOpen] = useState(true);
   const [ruleGuideOpen, setRuleGuideOpen] = useState(false);
 
-  const isShareMutexChild = activeTab === 'builder' || activeTab === 'instances';
+  const isShareMutexChild =
+    activeTab === 'builder' || activeTab === 'instances' || activeTab === 'stacking';
 
   useEffect(() => {
     if (isShareMutexChild) setShareMutexOpen(true);
   }, [activeTab]);
 
   useEffect(() => {
-    saveDemoState({ typeMatrix, instanceRules, priorityList, stackingStrategy, instances, applicationStrategy });
-  }, [typeMatrix, instanceRules, priorityList, stackingStrategy, instances, applicationStrategy]);
+    saveDemoState({
+      typeMatrix,
+      instanceRules,
+      priorityList,
+      stackingStrategy,
+      instances,
+      applicationStrategy,
+      stackingPilot,
+    });
+  }, [
+    typeMatrix,
+    instanceRules,
+    priorityList,
+    stackingStrategy,
+    instances,
+    applicationStrategy,
+    stackingPilot,
+  ]);
 
   const showDemoSaveToast = useCallback((label: string) => {
     setToast({
@@ -263,6 +288,20 @@ const App: React.FC = () => {
                     dbInstances={DATABASE_INSTANCES}
                     onSave={() => showDemoSaveToast('特例规则')}
                     onViewDefaultRules={() => setActiveTab('builder')}
+                />
+            </div>
+            )}
+
+            {activeTab === 'stacking' && (
+            <div className="animate-fade-in h-full overflow-hidden">
+                <StackingPilotPage
+                  config={stackingPilot}
+                  onConfigChange={setStackingPilot}
+                  categories={categories}
+                  onSave={() => showDemoSaveToast('折上折叠加')}
+                  onToast={showToast}
+                  onViewDefaultRules={() => setActiveTab('builder')}
+                  onViewCalcOrder={() => setActiveTab('priority')}
                 />
             </div>
             )}
