@@ -102,7 +102,7 @@ export function SpecialRuleListChrome({
           </button>
           <button type="button" className="btn btn--default btn--icon" onClick={onOpenStackingPilot}>
             <Layers size={14} />
-            折上折叠加
+            高级特例配置
             {stackingPilotEnabled && <span className="btn-dot" aria-label="已开启" />}
           </button>
           <button type="button" className="btn btn--primary btn--icon" onClick={onCreate}>
