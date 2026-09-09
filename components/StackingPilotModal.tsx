@@ -2,12 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Layers } from 'lucide-react';
 import { ModalShell } from './ModalShell';
 import { PromotionCategory } from '../types';
-import {
-  StackingBase,
-  StackingPilotConfig,
-  StackingPilotPair,
-  calcStackingPreview,
-} from '../types/stackingPilot';
+import { StackingPilotConfig, StackingPilotPair, calcStackingPreview } from '../types/stackingPilot';
 import { areStackingPilotsEqual, hydrateStackingPilot } from '../data/defaultStackingPilot';
 
 interface StackingPilotModalProps {
@@ -109,40 +104,11 @@ export function StackingPilotModal({
               <option value="off">关闭</option>
             </select>
           </div>
+        </div>
 
-          <div className={`strategy-row${off ? ' is-disabled' : ''}`}>
-            <div className="strategy-row__main">
-              <div className="strategy-row__label">{followName}的计算基数</div>
-              <p className="strategy-row__hint">
-                计算顺序固定为「1. {leadName} → 2. {followName}」，与收银员的操作先后无关。
-              </p>
-            </div>
-            <select
-              className="strategy-select"
-              value={pair.calcBase}
-              disabled={off}
-              onChange={e => patchPair({ calcBase: e.target.value as StackingBase })}
-            >
-              <option value="DISCOUNTED">折后价（折上折）</option>
-              <option value="ORIGINAL">商品原价</option>
-            </select>
-          </div>
-
-          <div className={`strategy-row${off ? ' is-disabled' : ''}`}>
-            <div className="strategy-row__main">
-              <div className="strategy-row__label">{followName}的门槛判定基数</div>
-              <p className="strategy-row__hint">券设置了满额门槛时，用这个价格判断是否满足。</p>
-            </div>
-            <select
-              className="strategy-select"
-              value={pair.thresholdBase}
-              disabled={off}
-              onChange={e => patchPair({ thresholdBase: e.target.value as StackingBase })}
-            >
-              <option value="DISCOUNTED">折后价</option>
-              <option value="ORIGINAL">商品原价</option>
-            </select>
-          </div>
+        <div className="strategy-note strategy-note--muted">
+          计算口径固定：先算{leadName}，再用{followName}在折后价上继续打折，与收银员的操作先后无关；
+          {followName}设置了满额门槛时，也按折后价判断是否满足。
         </div>
 
         <div className="stacking-preview">

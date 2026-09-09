@@ -1,13 +1,11 @@
 /**
- * 折上折叠加（试点）
+ * 折上折叠加
  *
  * 默认规则中的「共享且叠加」按商品原价分别计算各项优惠；
- * 试点开启后，指定的一组优惠改为在前一项优惠的折后价上继续计算（折上折）。
+ * 开启后，指定的一组优惠改为在前一项优惠的折后价上继续计算（折上折），
+ * 券的满额门槛同样按折后价判定。
  * 本期仅开放「限时折扣 + 折扣券」一组，后续再并入默认规则。
  */
-
-/** 计算基数：原价 / 折后价 */
-export type StackingBase = 'ORIGINAL' | 'DISCOUNTED';
 
 export interface StackingPilotPair {
   id: string;
@@ -17,17 +15,13 @@ export interface StackingPilotPair {
   followCategoryId: string;
   /** 是否启用本组叠加 */
   enabled: boolean;
-  /** 后一项优惠的计算基数 */
-  calcBase: StackingBase;
-  /** 后一项优惠的门槛判定基数 */
-  thresholdBase: StackingBase;
 }
 
 export interface StackingPilotConfig {
   pairs: StackingPilotPair[];
 }
 
-/** 试算器输入（仅用于配置页预览，不参与持久化） */
+/** 试算器输入（仅用于配置弹框预览，不参与持久化） */
 export interface StackingPreviewInput {
   originalPrice: number;
   /** 限时折扣折数，如 8 表示 8 折 */
@@ -49,19 +43,11 @@ export interface StackingPreviewResult {
   finalPrice: number;
 }
 
-export const STACKING_BASE_LABEL: Record<StackingBase, string> = {
-  ORIGINAL: '商品原价',
-  DISCOUNTED: '折后价',
-};
-
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-/**
- * 试算：先算 lead（限时折扣），再算 follow（折扣券）。
- * calcBase 决定 follow 用原价还是折后价作为基数。
- */
+/** 试算：先算 lead（限时折扣），再用 follow（折扣券）在折后价上继续计算。 */
 export function calcStackingPreview(
   input: StackingPreviewInput,
   pair: StackingPilotPair,
@@ -69,10 +55,7 @@ export function calcStackingPreview(
   followName: string
 ): StackingPreviewResult {
   const price = Math.max(0, input.originalPrice);
-  const leadRate = clampRate(input.leadDiscountRate);
-  const followRate = clampRate(input.followDiscountRate);
-
-  const afterLead = round2(price * (leadRate / 10));
+  const afterLead = round2(price * (clampRate(input.leadDiscountRate) / 10));
   const leadSaving = round2(price - afterLead);
 
   const rows: StackingPreviewRow[] = [
@@ -83,16 +66,12 @@ export function calcStackingPreview(
     return { rows, totalSaving: leadSaving, finalPrice: afterLead };
   }
 
-  const followBase = pair.calcBase === 'DISCOUNTED' ? afterLead : price;
-  const followTarget = round2(followBase * (followRate / 10));
-  const followSaving = round2(followBase - followTarget);
-  const finalPrice = Math.max(0, round2(afterLead - followSaving));
-
+  const finalPrice = round2(afterLead * (clampRate(input.followDiscountRate) / 10));
   rows.push({
     label: followName,
-    base: followBase,
+    base: afterLead,
     result: finalPrice,
-    saving: followSaving,
+    saving: round2(afterLead - finalPrice),
   });
 
   return {

@@ -8,8 +8,6 @@ const DEFAULT_PAIR: StackingPilotPair = {
   leadCategoryId: 'act_item_limited_disc',
   followCategoryId: 'asset_item_disc_voucher',
   enabled: false,
-  calcBase: 'DISCOUNTED',
-  thresholdBase: 'DISCOUNTED',
 };
 
 export const DEFAULT_STACKING_PILOT: StackingPilotConfig = {
@@ -23,12 +21,7 @@ export function hydrateStackingPilot(
   if (!savedPair) return structuredClone(DEFAULT_STACKING_PILOT);
   return {
     pairs: [
-      {
-        ...DEFAULT_PAIR,
-        enabled: savedPair.enabled ?? DEFAULT_PAIR.enabled,
-        calcBase: savedPair.calcBase ?? DEFAULT_PAIR.calcBase,
-        thresholdBase: savedPair.thresholdBase ?? DEFAULT_PAIR.thresholdBase,
-      },
+      { ...DEFAULT_PAIR, enabled: savedPair.enabled ?? DEFAULT_PAIR.enabled },
     ],
   };
 }
