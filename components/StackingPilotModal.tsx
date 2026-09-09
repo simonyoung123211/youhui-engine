@@ -77,12 +77,7 @@ export function StackingPilotModal({
           <Layers size={15} />
         </div>
         <div className="min-w-0">
-          <h2 className="text-[15px] font-semibold text-[#262626] flex items-center gap-2">
-            折上折叠加
-            <span className="text-[11px] bg-[#fff7e6] text-[#ad6800] border border-[#ffe58f] px-1.5 py-0.5 rounded">
-              试点
-            </span>
-          </h2>
+          <h2 className="text-[15px] font-semibold text-[#262626]">折上折叠加</h2>
           <p className="text-[12px] text-[#8c8c8c] mt-0.5">
             规则里的「共享且叠加」按商品原价分别计算优惠；开启后改为在折后价上继续计算。
           </p>
