@@ -50,17 +50,12 @@ export function StackingPilotModal({
         <div className="min-w-0">
           <h2 className="text-[15px] font-semibold text-[#262626]">折上折叠加</h2>
           <p className="text-[12px] text-[#8c8c8c] mt-0.5">
-            规则里的「共享且叠加」按商品原价分别计算优惠；开启后改为在折后价上继续计算。
+            顾客可以在{leadName}的基础上，再使用一张{followName}。
           </p>
         </div>
       </div>
 
       <div className="px-5 py-4 overflow-y-auto flex-1 min-h-0 custom-scrollbar">
-        <div className="strategy-note strategy-note--amber">
-          本期仅开放 <strong>{leadName} + {followName}</strong> 一组，其余优惠类型仍按默认规则与特例规则执行。
-          优惠引擎只按优惠类型判定能否叠加，不判断使用者身份；小程序与企迈 POS 共用同一套叠加规则。
-        </div>
-
         <div className="strategy-config-block">
           <div className="strategy-row">
             <div className="strategy-row__main">
@@ -68,7 +63,9 @@ export function StackingPilotModal({
                 {leadName} + {followName}
               </div>
               <p className="strategy-row__hint">
-                开启后，同一件商品可同时享受这两项优惠。关闭时维持原有的共享不叠加。
+                开启：先按{leadName}计算，再用{followName}在折后价上继续打折。
+                <br />
+                关闭：两项优惠只生效一个，系统自动保留更划算的。
               </p>
             </div>
             <select
@@ -83,9 +80,9 @@ export function StackingPilotModal({
         </div>
 
         <div className="strategy-note strategy-note--muted">
-          计算口径固定：先算{leadName}，再用{followName}在折后价上继续打折，与收银员的操作先后无关；
-          {followName}设置了满额门槛时，也按折后价判断是否满足。
-          例：商品原价 ¥10，{leadName} 8 折、{followName} 6 折，顾客实付 ¥4.80。
+          {followName}的满额门槛，按{leadName}后的价格判断。
+          <br />
+          例：商品原价 ¥10，{leadName} 8 折后为 ¥8，再用 6 折券，顾客实付 ¥4.80。
         </div>
       </div>
 
