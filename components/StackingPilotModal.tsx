@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Layers } from 'lucide-react';
 import { ModalShell } from './ModalShell';
 import { PromotionCategory } from '../types';
-import { StackingPilotConfig, StackingPilotPair, calcStackingPreview } from '../types/stackingPilot';
+import { StackingPilotConfig, StackingPilotPair } from '../types/stackingPilot';
 import { areStackingPilotsEqual, hydrateStackingPilot } from '../data/defaultStackingPilot';
 
 interface StackingPilotModalProps {
@@ -13,10 +13,6 @@ interface StackingPilotModalProps {
   onSave: (config: StackingPilotConfig) => void;
 }
 
-function formatMoney(value: number): string {
-  return `¥${value.toFixed(2)}`;
-}
-
 export function StackingPilotModal({
   open,
   config,
@@ -25,9 +21,6 @@ export function StackingPilotModal({
   onSave,
 }: StackingPilotModalProps) {
   const [draft, setDraft] = useState<StackingPilotConfig>(() => hydrateStackingPilot(config));
-  const [previewPrice, setPreviewPrice] = useState(10);
-  const [previewLeadRate, setPreviewLeadRate] = useState(8);
-  const [previewFollowRate, setPreviewFollowRate] = useState(6);
 
   useEffect(() => {
     if (!open) return;
@@ -47,23 +40,6 @@ export function StackingPilotModal({
   const patchPair = (patch: Partial<StackingPilotPair>) => {
     setDraft(prev => ({ pairs: prev.pairs.map(p => ({ ...p, ...patch })) }));
   };
-
-  const preview = useMemo(
-    () =>
-      calcStackingPreview(
-        {
-          originalPrice: previewPrice,
-          leadDiscountRate: previewLeadRate,
-          followDiscountRate: previewFollowRate,
-        },
-        pair,
-        leadName,
-        followName
-      ),
-    [previewPrice, previewLeadRate, previewFollowRate, pair, leadName, followName]
-  );
-
-  const off = !pair.enabled;
 
   return (
     <ModalShell open={open} onClose={onClose} size="lg">
@@ -109,73 +85,7 @@ export function StackingPilotModal({
         <div className="strategy-note strategy-note--muted">
           计算口径固定：先算{leadName}，再用{followName}在折后价上继续打折，与收银员的操作先后无关；
           {followName}设置了满额门槛时，也按折后价判断是否满足。
-        </div>
-
-        <div className="stacking-preview">
-          <div className="stacking-preview__head">
-            <span className="stacking-preview__title">效果试算</span>
-            <span className="stacking-preview__tip">仅用于预览优惠力度，不影响线上</span>
-          </div>
-          <div className="stacking-preview__inputs">
-            <label className="stacking-field">
-              <span className="stacking-field__label">商品原价（元）</span>
-              <input
-                type="number"
-                min={0}
-                step={0.1}
-                value={previewPrice}
-                onChange={e => setPreviewPrice(Number(e.target.value))}
-              />
-            </label>
-            <label className="stacking-field">
-              <span className="stacking-field__label">{leadName}（折）</span>
-              <input
-                type="number"
-                min={0}
-                max={10}
-                step={0.1}
-                value={previewLeadRate}
-                onChange={e => setPreviewLeadRate(Number(e.target.value))}
-              />
-            </label>
-            <label className="stacking-field">
-              <span className="stacking-field__label">{followName}（折）</span>
-              <input
-                type="number"
-                min={0}
-                max={10}
-                step={0.1}
-                disabled={off}
-                value={previewFollowRate}
-                onChange={e => setPreviewFollowRate(Number(e.target.value))}
-              />
-            </label>
-          </div>
-
-          <div className="stacking-preview__steps">
-            {preview.rows.map((row, index) => (
-              <div key={row.label} className="stacking-preview__step-row">
-                <span className="stacking-preview__step">{index + 1}</span>
-                <span className="stacking-preview__step-name">{row.label}</span>
-                <span className="stacking-preview__step-calc">
-                  {formatMoney(row.base)} → {formatMoney(row.result)}
-                </span>
-                <span className="stacking-preview__saving">-{formatMoney(row.saving)}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="stacking-preview__summary">
-            <span>
-              共优惠{' '}
-              <strong className="stacking-preview__saving">{formatMoney(preview.totalSaving)}</strong>
-            </span>
-            <span>
-              顾客实付{' '}
-              <strong className="stacking-preview__final">{formatMoney(preview.finalPrice)}</strong>
-            </span>
-            {off && <span className="stacking-preview__tip">未开启叠加，{followName}不参与计算</span>}
-          </div>
+          例：商品原价 ¥10，{leadName} 8 折、{followName} 6 折，顾客实付 ¥4.80。
         </div>
       </div>
 
