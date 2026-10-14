@@ -9,21 +9,18 @@ import {
 import { PriorityListChrome } from './PriorityListChrome';
 import { PriorityTypeList } from './PriorityTypeList';
 import { CalcOrderSaveConfirmModal } from './CalcOrderSaveConfirmModal';
+import { CalcOrderGuideModal } from './CalcOrderGuideModal';
 import {
   StackingStrategyConfirmModal,
   StackingStrategy,
 } from './StackingStrategyConfirmModal';
 import { StackingStrategyModal } from './StackingStrategyModal';
 import { ModalShell } from './ModalShell';
-import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import {
   areCalcOrderListsEqual,
   buildCalcOrderItems,
-  CalcOrderGroupFilter,
   computeCalcOrderChanges,
   detectNewCategoryIds,
-  filterCalcOrderItems,
-  getAdjustedCategoryIds,
   normalizeCalcOrderByScope,
   moveCalcOrderByOffset,
   moveCalcOrderToBottom,
@@ -31,6 +28,7 @@ import {
   moveCalcOrderToTop,
   reorderCalcOrderByDrag,
   splitByScope,
+  summarizeCalcOrderChanges,
 } from '../utils/calcOrderReorder';
 import {
   appendCalcOrderChangelog,
@@ -39,10 +37,6 @@ import {
   saveKnownCategoryIds,
   CalcOrderChangeLogEntry,
 } from '../utils/calcOrderChangelog';
-import {
-  applyCalcOrderListUrl,
-  readCalcOrderListUrl,
-} from '../utils/calcOrderListUrl';
 
 interface PriorityManagerProps {
   categories: PromotionCategory[];
@@ -51,7 +45,6 @@ interface PriorityManagerProps {
   stackingStrategy: StackingStrategy;
   setStackingStrategy: (strategy: StackingStrategy) => void;
   onSave?: () => void;
-  onOpenRuleGuide?: () => void;
   onToast?: (message: string) => void;
 }
 
@@ -62,10 +55,8 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
   stackingStrategy,
   setStackingStrategy,
   onSave,
-  onOpenRuleGuide,
   onToast,
 }) => {
-  const initialUrl = readCalcOrderListUrl();
   // 支付方式等分组不参与计算顺序配置
   const calcCategories = useMemo(
     () => categories.filter(c => !CALC_ORDER_EXCLUDED_GROUPS.includes(c.group)),
@@ -77,31 +68,25 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
   const [draftList, setDraftList] = useState<string[]>(priorityList);
   const [savedSnapshot, setSavedSnapshot] = useState<string[]>(priorityList);
 
-  const [keyword, setKeyword] = useState(initialUrl.keyword);
-  const [groupFilter, setGroupFilter] = useState<CalcOrderGroupFilter>(initialUrl.group);
-  const [adjustedOnly, setAdjustedOnly] = useState(initialUrl.adjustedOnly);
-  const [filterExpanded, setFilterExpanded] = useState(
-    initialUrl.group !== 'ALL' || initialUrl.adjustedOnly
-  );
-  const [bannerExpanded, setBannerExpanded] = useState(false);
-  const [rationaleExpanded, setRationaleExpanded] = useState(false);
   const [strategyPickerOpen, setStrategyPickerOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [targetIndexInput, setTargetIndexInput] = useState('1');
+  const [batchMoreOpen, setBatchMoreOpen] = useState(false);
   const [draggingScope, setDraggingScope] = useState<PromoScope | null>(null);
+  const [flashId, setFlashId] = useState<string | null>(null);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [resetModalOpen, setResetModalOpen] = useState(false);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [strategyModalOpen, setStrategyModalOpen] = useState(false);
   const [pendingStrategy, setPendingStrategy] = useState<StackingStrategy | null>(null);
   const [newCategoryNotice, setNewCategoryNotice] = useState<string | null>(null);
   const [changelog, setChangelog] = useState<CalcOrderChangeLogEntry[]>(() =>
     loadCalcOrderChangelog()
   );
-
-  const debouncedKeyword = useDebouncedValue(keyword, 200);
-  const skipUrlSyncRef = useRef(true);
 
   useEffect(() => {
     if (!isEditing) setDraftList(priorityList);
@@ -113,19 +98,11 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
     const newlyAdded = detectNewCategoryIds(calcCategories, known);
     if (known && newlyAdded.length > 0) {
       setNewCategoryNotice(
-        `系统新增 ${newlyAdded.length} 个优惠类型，已暂时追加到顺序末尾，请按默认推荐位置核对调整。`
+        `系统新增 ${newlyAdded.length} 个优惠科目，已暂时追加到顺序末尾，请按默认位置核对。`
       );
     }
     saveKnownCategoryIds(allIds);
   }, [calcCategories]);
-
-  useEffect(() => {
-    if (skipUrlSyncRef.current) {
-      skipUrlSyncRef.current = false;
-      return;
-    }
-    applyCalcOrderListUrl({ keyword, group: groupFilter, adjustedOnly });
-  }, [keyword, groupFilter, adjustedOnly]);
 
   const activeList = isEditing ? draftList : priorityList;
 
@@ -134,23 +111,7 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
     [activeList, calcCategories, defaultList]
   );
 
-  const filteredItems = useMemo(
-    () =>
-      filterCalcOrderItems(allItems, {
-        keyword: debouncedKeyword,
-        group: groupFilter,
-        scope: 'ALL',
-        adjustedOnly,
-      }),
-    [allItems, debouncedKeyword, groupFilter, adjustedOnly]
-  );
-
-  const { itemLevel, orderLevel } = useMemo(() => splitByScope(filteredItems), [filteredItems]);
-
-  const adjustedCount = useMemo(
-    () => getAdjustedCategoryIds(activeList, calcCategories).length,
-    [activeList, calcCategories]
-  );
+  const { itemLevel, orderLevel } = useMemo(() => splitByScope(allItems), [allItems]);
 
   const hasDraftChanges = useMemo(
     () => !areCalcOrderListsEqual(draftList, savedSnapshot),
@@ -161,16 +122,6 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
     () => computeCalcOrderChanges(savedSnapshot, draftList, calcCategories),
     [savedSnapshot, draftList, calcCategories]
   );
-
-  const hasActiveFilters =
-    keyword.trim() !== '' || groupFilter !== 'ALL' || adjustedOnly;
-
-  const clearFilters = () => {
-    setKeyword('');
-    setGroupFilter('ALL');
-    setAdjustedOnly(false);
-    setFilterExpanded(false);
-  };
 
   const showToast = useCallback(
     (msg: string) => {
@@ -196,11 +147,33 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
     setIsEditing(true);
   };
 
-  const handleCancelEdit = () => {
-    if (hasDraftChanges && !window.confirm('有未保存的顺序调整，确定放弃？')) return;
+  const flashMoved = (id: string) => {
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    setFlashId(id);
+    flashTimerRef.current = setTimeout(() => setFlashId(null), 900);
+  };
+
+  useEffect(
+    () => () => {
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    },
+    []
+  );
+
+  const discardEdit = () => {
     setDraftList([...priorityList]);
     setSelectedIds(new Set());
     setIsEditing(false);
+    setCancelModalOpen(false);
+    setBatchMoreOpen(false);
+  };
+
+  const handleCancelEdit = () => {
+    if (hasDraftChanges) {
+      setCancelModalOpen(true);
+      return;
+    }
+    discardEdit();
   };
 
   const handleRequestSave = () => {
@@ -218,9 +191,14 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
     setSaveModalOpen(false);
     setSelectedIds(new Set());
     const changes = pendingChanges;
+    const { primary, cascading } = summarizeCalcOrderChanges(changes);
+    const summary =
+      primary.length === 1 && cascading.length > 0
+        ? `主要调整「${primary[0].name}」，另有 ${cascading.length} 项顺带变动`
+        : `调整 ${primary.length || changes.length} 个优惠科目计算顺序`;
     appendCalcOrderChangelog({
       operator: '当前用户',
-      summary: `调整 ${changes.length} 个优惠类型计算顺序`,
+      summary,
       changeCount: changes.length,
     });
     setChangelog(loadCalcOrderChangelog());
@@ -244,6 +222,16 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
       return;
     }
     setDraftList(result.list);
+    flashMoved(fromId);
+  };
+
+  const handleMoveItem = (id: string, action: 'up' | 'down' | 'top') => {
+    updateDraft(list => {
+      if (action === 'top') return moveCalcOrderToTop(list, [id], calcCategories);
+      if (action === 'up') return moveCalcOrderByOffset(list, [id], -1, calcCategories);
+      return moveCalcOrderByOffset(list, [id], 1, calcCategories);
+    });
+    flashMoved(id);
   };
 
   const updateDraft = (updater: (list: string[]) => string[]) => {
@@ -254,7 +242,7 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
 
   const applyBatchMove = (fn: (list: string[], ids: string[]) => string[]) => {
     if (!selectedIdList.length) {
-      showToast('请先勾选要移动的优惠类型');
+      showToast('请先勾选要移动的优惠科目');
       return;
     }
     updateDraft(list => fn(list, selectedIdList));
@@ -271,6 +259,7 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
 
   const handleResetItem = (id: string, defaultGlobalIndex: number) => {
     updateDraft(list => moveCalcOrderToIndex(list, [id], Math.max(0, defaultGlobalIndex - 1), calcCategories));
+    flashMoved(id);
   };
 
   const handleOpenStrategy = () => {
@@ -293,38 +282,20 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
     onSave?.();
     showToast(
       pendingStrategy === 'OPERATION_ORDER'
-        ? '已切换为收银添加顺序（POS）'
-        : '已切换为严格类型优先级'
+        ? '已切换为按录入先后（仅企迈 POS）'
+        : '已切换为按计算顺序'
     );
   };
-
-  const itemPhaseStart = itemLevel[0]?.globalIndex ?? 1;
-  const orderPhaseStart = orderLevel[0]?.globalIndex ?? itemPhaseStart;
 
   return (
     <div className="page-card page-card--list calc-order-page h-full flex flex-col overflow-hidden">
       <PriorityListChrome
         isEditing={isEditing}
-        bannerExpanded={bannerExpanded}
-        onBannerExpandedChange={setBannerExpanded}
-        keyword={keyword}
-        onKeywordChange={setKeyword}
-        groupFilter={groupFilter}
-        onGroupFilterChange={setGroupFilter}
-        adjustedOnly={adjustedOnly}
-        onAdjustedOnlyChange={setAdjustedOnly}
-        filterExpanded={filterExpanded}
-        onFilterExpandedChange={setFilterExpanded}
-        hasActiveFilters={hasActiveFilters}
-        adjustedCount={adjustedCount}
-        onClearFilters={clearFilters}
         onStartEdit={handleStartEdit}
         onCancelEdit={handleCancelEdit}
         onRequestSave={handleRequestSave}
         onResetDefault={handleResetDefault}
-        onOpenRuleGuide={() => onOpenRuleGuide?.()}
-        rationaleExpanded={rationaleExpanded}
-        onRationaleExpandedChange={setRationaleExpanded}
+        onOpenCalcGuide={() => setGuideOpen(true)}
         newCategoryNotice={newCategoryNotice}
         stackingStrategy={stackingStrategy}
         onOpenStrategy={handleOpenStrategy}
@@ -332,17 +303,20 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
 
       {isEditing && (
         <div className="calc-order-edit-banner shrink-0">
-          <span>编辑模式：拖拽或使用批量工具调整全局顺序。保存前将二次确认，变更影响下单优惠计算。</span>
+          <span>
+            {selectedIdList.length === 0
+              ? '编辑模式：可用行内上移/下移/置顶，或拖拽、勾选后批量移动。保存前将二次确认。'
+              : `已选 ${selectedIdList.length} 项，可批量移动。保存前将二次确认。`}
+          </span>
         </div>
       )}
 
-      {isEditing && (
+      {isEditing && selectedIdList.length > 0 && (
         <div className="calc-order-batch-bar shrink-0">
           <span className="calc-order-batch-bar__label">已选 {selectedIds.size} 项</span>
           <button
             type="button"
             className="btn btn--default btn--sm"
-            disabled={!selectedIdList.length}
             onClick={() => applyBatchMove((list, ids) => moveCalcOrderToTop(list, ids, calcCategories))}
           >
             移至顶
@@ -350,7 +324,6 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
           <button
             type="button"
             className="btn btn--default btn--sm"
-            disabled={!selectedIdList.length}
             onClick={() => applyBatchMove((list, ids) => moveCalcOrderByOffset(list, ids, -1, calcCategories))}
           >
             上移
@@ -358,7 +331,6 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
           <button
             type="button"
             className="btn btn--default btn--sm"
-            disabled={!selectedIdList.length}
             onClick={() => applyBatchMove((list, ids) => moveCalcOrderByOffset(list, ids, 1, calcCategories))}
           >
             下移
@@ -366,14 +338,20 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
           <button
             type="button"
             className="btn btn--default btn--sm"
-            disabled={!selectedIdList.length}
             onClick={() => applyBatchMove((list, ids) => moveCalcOrderToBottom(list, ids, calcCategories))}
           >
             移至底
           </button>
-          {selectedIdList.length > 0 && (
+          <button
+            type="button"
+            className={`btn btn--default btn--sm ${batchMoreOpen ? 'is-active' : ''}`}
+            onClick={() => setBatchMoreOpen(v => !v)}
+          >
+            更多
+          </button>
+          {batchMoreOpen && (
             <div className="calc-order-batch-bar__index">
-              <label htmlFor="co-target-idx">移至序号</label>
+              <label htmlFor="co-target-idx">移至全局序号</label>
               <input
                 id="co-target-idx"
                 className="calc-order-batch-bar__input"
@@ -388,6 +366,10 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
         </div>
       )}
 
+      <div className="calc-order-flow-hint shrink-0">
+        <span>先算左边单品科目，再算右边整单科目</span>
+      </div>
+
       <div className="calc-order-flow-mobile shrink-0 md:hidden">
         <span className="calc-order-flow-mobile__step calc-order-flow-mobile__step--active">1 单品级</span>
         <span className="calc-order-flow-mobile__arrow">→</span>
@@ -396,8 +378,8 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
 
       <div className="calc-order-stages flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-3 px-4 pb-3">
         <PriorityTypeList
-          title="单品级计算阶段"
-          phaseLabel={`全局 #${itemPhaseStart} 起`}
+          title="单品级"
+          phaseLabel="本阶段排序 · 先算"
           phaseScope={PromoScope.SINGLE_ITEM}
           items={itemLevel}
           isEditing={isEditing}
@@ -414,11 +396,13 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
           draggingScope={draggingScope}
           onDragScopeChange={setDraggingScope}
           onResetItem={handleResetItem}
+          onMoveItem={handleMoveItem}
+          flashId={flashId}
           showFlowArrow
         />
         <PriorityTypeList
-          title="整单级计算阶段"
-          phaseLabel={`全局 #${orderPhaseStart} 起`}
+          title="整单级"
+          phaseLabel="本阶段排序 · 后算"
           phaseScope={PromoScope.ORDER}
           items={orderLevel}
           isEditing={isEditing}
@@ -435,6 +419,8 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
           draggingScope={draggingScope}
           onDragScopeChange={setDraggingScope}
           onResetItem={handleResetItem}
+          onMoveItem={handleMoveItem}
+          flashId={flashId}
         />
       </div>
 
@@ -449,6 +435,8 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
           </div>
         </div>
       )}
+
+      <CalcOrderGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} />
 
       <StackingStrategyModal
         open={strategyPickerOpen}
@@ -468,7 +456,7 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
       <ModalShell open={resetModalOpen} onClose={() => setResetModalOpen(false)} size="sm">
         <div className="px-5 py-4 border-b border-[#f0f0f0]">
           <h2 className="text-[15px] font-semibold">恢复默认顺序</h2>
-          <p className="text-[13px] text-[#8c8c8c] mt-1">将草稿恢复为系统推荐的全局顺序，尚未保存到线上。</p>
+          <p className="text-[13px] text-[#8c8c8c] mt-1">将草稿恢复为系统推荐顺序，尚未保存到线上。</p>
         </div>
         <div className="px-5 py-3 flex justify-end gap-2">
           <button type="button" className="btn btn--default" onClick={() => setResetModalOpen(false)}>
@@ -476,6 +464,21 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
           </button>
           <button type="button" className="btn btn--primary" onClick={handleConfirmReset}>
             恢复默认
+          </button>
+        </div>
+      </ModalShell>
+
+      <ModalShell open={cancelModalOpen} onClose={() => setCancelModalOpen(false)} size="sm">
+        <div className="px-5 py-4 border-b border-[#f0f0f0]">
+          <h2 className="text-[15px] font-semibold">放弃未保存的调整？</h2>
+          <p className="text-[13px] text-[#8c8c8c] mt-1">当前顺序尚未保存，退出编辑后将恢复为上次已保存版本。</p>
+        </div>
+        <div className="px-5 py-3 flex justify-end gap-2">
+          <button type="button" className="btn btn--default" onClick={() => setCancelModalOpen(false)}>
+            继续编辑
+          </button>
+          <button type="button" className="btn btn--primary" onClick={discardEdit}>
+            放弃调整
           </button>
         </div>
       </ModalShell>

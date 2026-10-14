@@ -25,12 +25,9 @@ export function StackingStrategyModal({
           <MonitorCheck size={15} />
         </div>
         <div className="min-w-0">
-          <h2 className="text-[15px] font-semibold text-[#262626] flex items-center gap-2">
-            B 端收银顺序
-            <span className="text-[11px] bg-[#262626] text-white px-1.5 py-0.5 rounded">POS</span>
-          </h2>
+          <h2 className="text-[15px] font-semibold text-[#262626]">POS计算顺序</h2>
           <p className="text-[12px] text-[#8c8c8c] mt-0.5">
-            当多种优惠允许叠加时，收银员操作顺序是否影响计算结果。
+            仅影响企迈 POS：多种优惠可一起用时，按本页计算顺序算，还是按收银员录入先后算。
           </p>
         </div>
       </div>
@@ -39,7 +36,7 @@ export function StackingStrategyModal({
         {locked && (
           <div className="calc-order-strategy__lock mb-3">
             <Info size={13} />
-            请先保存或取消顺序调整，再切换收银策略
+            请先保存或取消顺序调整，再切换 POS 计算顺序
           </div>
         )}
         <div className={`flex flex-col md:flex-row gap-3 ${locked ? 'calc-order-strategy__body--locked' : ''}`}>
@@ -52,48 +49,45 @@ export function StackingStrategyModal({
             onClick={() => onPick('STATIC_PRIORITY')}
           >
             <div className="flex justify-between items-start mb-2">
-              <div className="w-8 h-8 rounded bg-blue-50 text-brand-600 flex items-center justify-center">
+              <div className="w-8 h-8 rounded bg-brand-50 text-brand-600 flex items-center justify-center">
                 <ListOrdered size={16} />
               </div>
               {current === 'STATIC_PRIORITY' && (
                 <span className="calc-order-strategy-card__badge">当前生效</span>
               )}
             </div>
-            <h4 className="text-[13px] font-medium text-[#262626]">严格遵循类型优先级（默认）</h4>
+            <h4 className="text-[13px] font-medium text-[#262626]">按计算顺序（推荐）</h4>
             <p className="text-[12px] text-[#8c8c8c] mt-1.5 leading-relaxed">
-              无论收银员先录入哪张券，系统都按「计算顺序」页的全局序号计算。
+              无论收银员先录入哪张券，都按「计算顺序」页的科目先后计算，结果稳定可预期。
             </p>
           </button>
 
           <button
             type="button"
             className={`calc-order-strategy-card flex-1 text-left ${
-              current === 'OPERATION_ORDER' ? 'calc-order-strategy-card--active-purple' : ''
+              current === 'OPERATION_ORDER' ? 'calc-order-strategy-card--active' : ''
             }`}
             disabled={locked}
             onClick={() => onPick('OPERATION_ORDER')}
           >
             <div className="flex justify-between items-start mb-2">
-              <div className="w-8 h-8 rounded bg-purple-50 text-purple-600 flex items-center justify-center">
+              <div className="w-8 h-8 rounded bg-[#f4f6f8] text-[#595959] flex items-center justify-center">
                 <MousePointerClick size={16} />
               </div>
               {current === 'OPERATION_ORDER' && (
-                <span className="calc-order-strategy-card__badge calc-order-strategy-card__badge--purple">
-                  当前生效
-                </span>
+                <span className="calc-order-strategy-card__badge">当前生效</span>
               )}
             </div>
-            <h4 className="text-[13px] font-medium text-[#262626]">遵循收银添加顺序</h4>
+            <h4 className="text-[13px] font-medium text-[#262626]">按录入先后</h4>
             <p className="text-[12px] text-[#8c8c8c] mt-1.5 leading-relaxed">
-              按收银员扫码/点击的先后顺序扣减。
-              <span className="text-purple-600"> 录入顺序可能影响实付。</span>
+              按收银员扫码/点击的先后顺序扣减。不同操作习惯可能导致实付不一致。
             </p>
             <div className="mt-2.5 text-[11px] text-[#8c8c8c] space-y-1">
               <div className="flex items-center gap-1">
-                <MonitorCheck size={12} className="text-orange-500" /> B 端收银台 · 生效
+                <MonitorCheck size={12} className="text-brand-600" /> 企迈 POS · 生效
               </div>
               <div className="flex items-center gap-1 text-[#bfbfbf]">
-                <Smartphone size={12} /> C 端小程序 · 强制类型优先级
+                <Smartphone size={12} /> 小程序 · 始终按计算顺序
               </div>
             </div>
           </button>

@@ -63,9 +63,9 @@ export function StackingPilotModal({
                 {leadName} + {followName}
               </div>
               <p className="strategy-row__hint">
-                开启：先按{leadName}计算，再用{followName}在折后价上继续打折。
+                开启：小程序点单先按{leadName}计算，再用{followName}在折后价上继续打折。企迈 POS 也可按收银员选择优惠的先后顺序执行。
                 <br />
-                关闭：两项优惠只生效一个，系统自动保留更划算的。
+                关闭：小程序和企迈 POS 都只生效一个，系统自动保留更划算的。
               </p>
             </div>
             <select

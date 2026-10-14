@@ -185,7 +185,7 @@ const App: React.FC = () => {
       <aside className="w-56 bg-white border-r border-[#e8e8e8] flex flex-col fixed h-full z-20 hidden md:flex">
         <div className="px-4 py-3 border-b border-[#e8e8e8] flex items-center gap-2">
           <div className="w-7 h-7 rounded bg-brand-500 flex items-center justify-center text-white text-xs font-bold">优</div>
-          <span className="font-semibold text-[15px] text-[#262626]">优惠计算规则</span>
+          <span className="font-semibold text-[15px] text-[#262626]">优惠引擎</span>
         </div>
 
         <nav className="flex-1 overflow-y-auto custom-scrollbar px-2 py-3 space-y-0.5">
@@ -300,7 +300,6 @@ const App: React.FC = () => {
                     stackingStrategy={stackingStrategy}
                     setStackingStrategy={setStackingStrategy}
                     onSave={() => showDemoSaveToast('计算顺序')}
-                    onOpenRuleGuide={() => setRuleGuideOpen(true)}
                     onToast={showToast}
                 />
             </div>

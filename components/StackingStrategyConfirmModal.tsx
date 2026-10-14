@@ -23,7 +23,7 @@ export function StackingStrategyConfirmModal({
     <ModalShell open={open} onClose={onCancel} size="md">
       <div className="px-5 py-4 border-b border-[#f0f0f0] shrink-0">
         <h2 className="text-[15px] font-semibold text-[#262626]">
-          {isOperationOrder ? '切换为收银添加顺序' : '切换为严格类型优先级'}
+          {isOperationOrder ? '切换为按录入先后' : '切换为按计算顺序'}
         </h2>
       </div>
 
@@ -37,7 +37,7 @@ export function StackingStrategyConfirmModal({
               </span>
             </div>
             <p className="text-[13px] text-[#595959] leading-relaxed mb-3">
-              此策略<strong>仅对 B 端收银台（POS）生效</strong>。C 端小程序/外卖仍使用上方配置的类型优先级，不受录入顺序影响。
+              此方式<strong>仅对企迈 POS 生效</strong>。小程序点单仍按「计算顺序」页配置计算，不受录入先后影响。
             </p>
             <div className="text-[12px] text-[#8c8c8c] bg-[#fafafa] p-3 rounded border border-[#f0f0f0]">
               示例：同时使用「减 10 元」与「打 9 折」时，先扫哪张券将决定先减后折或先折后减。
@@ -47,10 +47,10 @@ export function StackingStrategyConfirmModal({
           <>
             <div className="flex items-start gap-2 p-3 rounded border border-[#e6f7ff] bg-[#e6f7ff] text-[13px] text-[#0958d9] mb-3">
               <Info size={16} className="shrink-0 mt-0.5" />
-              <span>无论收银员先录入哪张券，系统均按「计算顺序」页配置的全局序号扣减，结果稳定可预期。</span>
+              <span>无论收银员先录入哪张券，系统均按「计算顺序」页的科目先后扣减，结果稳定可预期。</span>
             </div>
             <p className="text-[13px] text-[#595959] leading-relaxed">
-              推荐作为默认策略。B 端 POS 与 C 端均遵循类型优先级（C 端本身无录入顺序概念）。
+              推荐作为默认方式。企迈 POS 与小程序都按计算顺序执行（小程序本身无录入先后概念）。
             </p>
           </>
         )}

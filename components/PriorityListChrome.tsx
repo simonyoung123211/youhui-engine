@@ -1,31 +1,14 @@
 import React from 'react';
-import { BookOpen, Calculator, ChevronDown, Filter, MonitorCheck, Pencil, RotateCcw, Save, X } from 'lucide-react';
-import { PromoGroup, PROMO_GROUP_ORDER, CALC_ORDER_EXCLUDED_GROUPS } from '../types';
-import { CalcOrderGroupFilter } from '../utils/calcOrderReorder';
+import { Calculator, ChevronDown, MonitorCheck, Pencil, RotateCcw, Save, X } from 'lucide-react';
 import { StackingStrategy } from './StackingStrategyConfirmModal';
 
 export interface PriorityListChromeProps {
   isEditing: boolean;
-  bannerExpanded: boolean;
-  onBannerExpandedChange: (v: boolean) => void;
-  keyword: string;
-  onKeywordChange: (v: string) => void;
-  groupFilter: CalcOrderGroupFilter;
-  onGroupFilterChange: (v: CalcOrderGroupFilter) => void;
-  adjustedOnly: boolean;
-  onAdjustedOnlyChange: (v: boolean) => void;
-  filterExpanded: boolean;
-  onFilterExpandedChange: (v: boolean) => void;
-  hasActiveFilters: boolean;
-  adjustedCount: number;
-  onClearFilters: () => void;
   onStartEdit: () => void;
   onCancelEdit: () => void;
   onRequestSave: () => void;
   onResetDefault: () => void;
-  onOpenRuleGuide: () => void;
-  rationaleExpanded: boolean;
-  onRationaleExpandedChange: (v: boolean) => void;
+  onOpenCalcGuide: () => void;
   newCategoryNotice?: string | null;
   stackingStrategy: StackingStrategy;
   onOpenStrategy: () => void;
@@ -33,26 +16,11 @@ export interface PriorityListChromeProps {
 
 export function PriorityListChrome({
   isEditing,
-  bannerExpanded,
-  onBannerExpandedChange,
-  keyword,
-  onKeywordChange,
-  groupFilter,
-  onGroupFilterChange,
-  adjustedOnly,
-  onAdjustedOnlyChange,
-  filterExpanded,
-  onFilterExpandedChange,
-  hasActiveFilters,
-  adjustedCount,
-  onClearFilters,
   onStartEdit,
   onCancelEdit,
   onRequestSave,
   onResetDefault,
-  onOpenRuleGuide,
-  rationaleExpanded,
-  onRationaleExpandedChange,
+  onOpenCalcGuide,
   newCategoryNotice,
   stackingStrategy,
   onOpenStrategy,
@@ -64,31 +32,23 @@ export function PriorityListChrome({
           <div className="list-page-header__title-row">
             <Calculator className="text-brand-600 shrink-0" size={20} aria-hidden />
             <h1 className="list-page-header__title">计算顺序</h1>
-            <button
-              type="button"
-              className="list-page-header__help"
-              aria-label="查看规则说明"
-              onClick={onOpenRuleGuide}
-            >
-              <BookOpen size={16} />
-            </button>
           </div>
           <p className="list-page-header__desc">
-            当多种优惠 <strong>允许叠加</strong> 时，按全局序号依次扣减；先完成单品级，再进入整单级。
+            多种优惠科目可一起用时，按下方顺序依次计算：先算单品，再算整单。本页调整的是优惠科目先后，不是活动里的立减/改价/折扣。
           </p>
         </div>
         <div className="list-page-header__actions">
           <button
             type="button"
-            className="btn btn--default btn--sm calc-order-strategy-entry"
+            className="btn btn--link btn--sm calc-order-strategy-entry"
             disabled={isEditing}
             onClick={onOpenStrategy}
-            title={isEditing ? '请先保存或取消顺序调整，再切换收银策略' : '配置 B 端收银台叠加策略'}
+            title={isEditing ? '请先保存或取消顺序调整，再切换 POS 计算顺序' : '配置企迈 POS 多种优惠一起用时按什么顺序计算'}
           >
             <MonitorCheck size={14} />
-            POS收银策略
+            POS计算顺序
             <span className="calc-order-strategy-entry__pill">
-              {stackingStrategy === 'STATIC_PRIORITY' ? '类型优先级' : '录入顺序'}
+              {stackingStrategy === 'STATIC_PRIORITY' ? '按计算顺序' : '按录入先后'}
             </span>
           </button>
           {!isEditing ? (
@@ -122,117 +82,14 @@ export function PriorityListChrome({
       )}
 
       <div className="info-banner-wrap shrink-0">
-        <button
-          type="button"
-          className={`info-banner-toggle ${bannerExpanded ? 'is-expanded' : ''}`}
-          onClick={() => onBannerExpandedChange(!bannerExpanded)}
-          aria-expanded={bannerExpanded}
-        >
+        <button type="button" className="info-banner-toggle" onClick={onOpenCalcGuide}>
           <span className="info-banner-toggle__label">计算顺序说明</span>
-          <ChevronDown size={14} className="info-banner-toggle__chevron" />
+          <span className="info-banner-toggle__preview">
+            一般用系统默认即可；仅在优惠可一起用时，顺序才会影响顾客实付
+          </span>
+          <span className="info-banner-toggle__action">查看完整说明</span>
+          <ChevronDown size={14} className="info-banner-toggle__chevron info-banner-toggle__chevron--open" />
         </button>
-        {bannerExpanded && (
-          <div className="info-banner-panel">
-            <div className="info-banner">
-              <span>
-                全局序号决定叠加时的扣减先后。计算分两个阶段：<strong>单品级</strong>优先执行，汇总后再执行
-                <strong>整单级</strong>。平台团购按作用对象区分：套餐券/次券先核销占用商品，排在商家侧单品优惠之前；平台代金券为订单抵扣，排在商家侧整单优惠之后。建议遵循「改价（会员价）&gt; 打折 &gt; 立减」的通用顺序。
-              </span>
-            </div>
-            <button
-              type="button"
-              className="calc-order-rationale-toggle"
-              onClick={() => onRationaleExpandedChange(!rationaleExpanded)}
-            >
-              {rationaleExpanded ? '收起推荐依据' : '查看推荐依据'}
-              <ChevronDown
-                size={12}
-                className={rationaleExpanded ? 'calc-order-rationale-toggle__chevron--open' : ''}
-              />
-            </button>
-            {rationaleExpanded && (
-              <div className="calc-order-rationale">
-                <p className="calc-order-rationale__intro">
-                  系统默认顺序按业务分组权重生成，同组内按名称稳定排序：
-                </p>
-                <ul className="calc-order-rationale__list">
-                  <li>单品级：平台团购（套餐券/次券，先核销占用商品）→ 用户权益（改价）→ 营销活动 → 用户资产 → 企迈POS</li>
-                  <li>整单级：用户权益 → 营销活动 → 用户资产 → 企迈POS → 平台团购（代金券）</li>
-                  <li>同组内按名称稳定排序，序号全局连续编号；支付方式不参与优惠计算，无需配置顺序</li>
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="list-chrome shrink-0">
-        <div className="list-toolbar">
-          <div className="list-toolbar__fields">
-            <div className="filter-item filter-item--wide">
-              <label htmlFor="co-keyword">优惠类型</label>
-              <input
-                id="co-keyword"
-                className="input input--filter"
-                placeholder="搜索名称、ID、描述"
-                value={keyword}
-                onChange={e => onKeywordChange(e.target.value)}
-              />
-            </div>
-            {filterExpanded && (
-              <>
-                <div className="filter-item">
-                  <label htmlFor="co-group">业务分组</label>
-                  <select
-                    id="co-group"
-                    className="input input--filter"
-                    value={groupFilter}
-                    onChange={e => onGroupFilterChange(e.target.value as CalcOrderGroupFilter)}
-                  >
-                    <option value="ALL">全部分组</option>
-                    {PROMO_GROUP_ORDER.filter(g => !CALC_ORDER_EXCLUDED_GROUPS.includes(g)).map(g => (
-                      <option key={g} value={g}>
-                        {g}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="filter-item filter-item--checkbox">
-                  <label htmlFor="co-adjusted">变更筛选</label>
-                  <label className="filter-checkbox" htmlFor="co-adjusted">
-                    <input
-                      id="co-adjusted"
-                      type="checkbox"
-                      checked={adjustedOnly}
-                      onChange={e => onAdjustedOnlyChange(e.target.checked)}
-                    />
-                    仅看已调整
-                    {adjustedCount > 0 && (
-                      <span className="calc-order-adjusted-badge">{adjustedCount}</span>
-                    )}
-                  </label>
-                </div>
-              </>
-            )}
-          </div>
-          <div className="list-toolbar__actions">
-            {hasActiveFilters && (
-              <button type="button" className="btn btn--default btn--icon btn--sm" onClick={onClearFilters}>
-                <RotateCcw size={13} />
-                重置
-              </button>
-            )}
-            <button
-              type="button"
-              className={`list-toolbar__toggle ${filterExpanded ? 'is-expanded' : ''}`}
-              onClick={() => onFilterExpandedChange(!filterExpanded)}
-            >
-              <Filter size={14} />
-              更多筛选
-              <ChevronDown size={12} />
-            </button>
-          </div>
-        </div>
       </div>
     </>
   );

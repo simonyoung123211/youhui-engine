@@ -5,15 +5,43 @@ export type CalcOrderScopeFilter = 'ALL' | PromoScope;
 
 export interface CalcOrderListItem {
   id: string;
+  /** 全局序号（单品+整单连续） */
   globalIndex: number;
+  /** 阶段内序号（单品/整单各自从 1 起） */
+  phaseIndex: number;
   category: PromotionCategory;
   defaultGlobalIndex: number;
+  /** 系统默认在本阶段的序号 */
+  defaultPhaseIndex: number;
+  /** 相对系统默认全局位置是否偏离 */
   isAdjusted: boolean;
 }
 
 export function areCalcOrderListsEqual(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false;
   return a.every((id, i) => id === b[i]);
+}
+
+function buildPhaseIndexMaps(
+  list: string[],
+  catMap: Map<string, PromotionCategory>
+): { global: Map<string, number>; phase: Map<string, number> } {
+  const global = new Map<string, number>();
+  const phase = new Map<string, number>();
+  let itemPhase = 0;
+  let orderPhase = 0;
+  list.forEach((id, i) => {
+    global.set(id, i + 1);
+    const scope = catMap.get(id)?.defaultScope;
+    if (scope === PromoScope.SINGLE_ITEM) {
+      itemPhase += 1;
+      phase.set(id, itemPhase);
+    } else if (scope === PromoScope.ORDER) {
+      orderPhase += 1;
+      phase.set(id, orderPhase);
+    }
+  });
+  return { global, phase };
 }
 
 export function buildCalcOrderItems(
@@ -23,19 +51,24 @@ export function buildCalcOrderItems(
 ): CalcOrderListItem[] {
   const catMap = new Map(categories.map(c => [c.id, c]));
   const defaultOrder = defaultList ?? getDefaultPriority(categories);
-  const defaultIndexMap = new Map(defaultOrder.map((id, i) => [id, i + 1]));
+  const currentMaps = buildPhaseIndexMaps(list, catMap);
+  const defaultMaps = buildPhaseIndexMaps(defaultOrder, catMap);
 
   return list
     .map((id, i) => {
       const category = catMap.get(id);
       if (!category) return null;
-      const defaultGlobalIndex = defaultIndexMap.get(id) ?? i + 1;
-      const globalIndex = i + 1;
+      const defaultGlobalIndex = defaultMaps.global.get(id) ?? i + 1;
+      const globalIndex = currentMaps.global.get(id) ?? i + 1;
+      const phaseIndex = currentMaps.phase.get(id) ?? 1;
+      const defaultPhaseIndex = defaultMaps.phase.get(id) ?? phaseIndex;
       return {
         id,
         globalIndex,
+        phaseIndex,
         category,
         defaultGlobalIndex,
+        defaultPhaseIndex,
         isAdjusted: defaultGlobalIndex !== globalIndex,
       };
     })
@@ -83,6 +116,41 @@ export function computeCalcOrderChanges(
   });
 
   return changes.sort((a, b) => a.toIndex - b.toIndex);
+}
+
+export interface CalcOrderChangeSummary {
+  /** 主动大幅移动的科目（商家意图） */
+  primary: CalcOrderPositionChange[];
+  /** 因重排被动位移的科目 */
+  cascading: CalcOrderPositionChange[];
+}
+
+/**
+ * 将序号变化拆成「主动移动」与「级联位移」。
+ * 启发式：位移距离最大的项视为主动移动；其余为级联。
+ */
+export function summarizeCalcOrderChanges(
+  changes: CalcOrderPositionChange[]
+): CalcOrderChangeSummary {
+  if (changes.length === 0) {
+    return { primary: [], cascading: [] };
+  }
+
+  const withDisp = changes.map(c => ({
+    change: c,
+    disp: Math.abs(c.toIndex - c.fromIndex),
+  }));
+  const maxDisp = Math.max(...withDisp.map(x => x.disp));
+
+  // 全部只挪 1 位时（如相邻对调），都视为主动变更，避免误折到「级联」
+  if (maxDisp <= 1) {
+    return { primary: changes, cascading: [] };
+  }
+
+  const primary = withDisp.filter(x => x.disp === maxDisp).map(x => x.change);
+  const primaryIds = new Set(primary.map(c => c.id));
+  const cascading = changes.filter(c => !primaryIds.has(c.id));
+  return { primary, cascading };
 }
 
 export function reorderCalcOrderByDrag(
