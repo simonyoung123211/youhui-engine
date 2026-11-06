@@ -27,7 +27,7 @@ export const INITIAL_CATEGORIES: PromotionCategory[] = [
   // ── 单品 · 营销活动 (5) ──
   cat('act_item_limited_disc', PromoGroup.ACTIVITY, '限时折扣', PromoType.LIMITED_TIME_DISCOUNT, '指定时段单品特价', PromoScope.SINGLE_ITEM),
   cat('act_item_m_n_disc', PromoGroup.ACTIVITY, '满M件N折', PromoType.M_PIECES_N_DISCOUNT, '满件打折', PromoScope.SINGLE_ITEM),
-  cat('act_item_bogo', PromoGroup.ACTIVITY, '买1送1', PromoType.BOGO, '单品买赠', PromoScope.SINGLE_ITEM),
+  cat('act_item_bogo', PromoGroup.ACTIVITY, '买一送一', PromoType.BOGO, '单品买赠', PromoScope.SINGLE_ITEM),
   cat('act_item_sv_pay_disc', PromoGroup.ACTIVITY, '储值付优惠', PromoType.STORED_VALUE_PAY_DISCOUNT, '储值支付享单品优惠', PromoScope.SINGLE_ITEM),
   cat('act_item_fixed_price', PromoGroup.ACTIVITY, '一口价', PromoType.FIXED_PRICE, '单品固定特价', PromoScope.SINGLE_ITEM),
 
@@ -47,18 +47,18 @@ export const INITIAL_CATEGORIES: PromotionCategory[] = [
   cat('asset_item_addon', PromoGroup.ASSET, '加料券', PromoType.ADDON_VOUCHER, '加料抵扣', PromoScope.SINGLE_ITEM),
   cat('asset_item_count_card', PromoGroup.ASSET, '商品次卡', PromoType.ITEM_COUNT_CARD, '商品次卡', PromoScope.SINGLE_ITEM),
 
-  // ── 单品 · 企迈POS (3) ──
-  cat('pos_item_custom', PromoGroup.POS, '自定义记账', PromoType.POS_ITEM_CUSTOM_ACCOUNT, 'POS单品自定义优惠', PromoScope.SINGLE_ITEM),
+  // ── 单品 · 企迈POS (4) ──
+  cat('pos_item_custom', PromoGroup.POS, '自定义记账', PromoType.POS_ITEM_CUSTOM_ACCOUNT, 'POS单品自定义记账', PromoScope.SINGLE_ITEM),
   cat('pos_item_fixed', PromoGroup.POS, '固定金额', PromoType.POS_ITEM_FIXED_AMOUNT, 'POS单品固定减免', PromoScope.SINGLE_ITEM),
   cat('pos_item_disc_scheme', PromoGroup.POS, '折扣方案', PromoType.POS_ITEM_DISCOUNT_SCHEME, 'POS单品折扣方案', PromoScope.SINGLE_ITEM),
+  cat('pos_item_custom_reduce', PromoGroup.POS, '自定义减免', PromoType.POS_ITEM_CUSTOM_REDUCE, 'POS单品自定义减免', PromoScope.SINGLE_ITEM),
 
-  // ── 单品 · 平台团购 (6) ──
+  // ── 单品 · 平台团购 (5) ──
   cat('plat_item_mt_set', PromoGroup.PLATFORM, '美团套餐券', PromoType.MT_SET_MEAL, '美团套餐核销', PromoScope.SINGLE_ITEM),
   cat('plat_item_mt_count', PromoGroup.PLATFORM, '美团次券', PromoType.MT_COUNT, '美团次卡核销', PromoScope.SINGLE_ITEM),
   cat('plat_item_dy_set', PromoGroup.PLATFORM, '抖音套餐券', PromoType.DY_SET_MEAL, '抖音套餐核销', PromoScope.SINGLE_ITEM),
   cat('plat_item_dy_count', PromoGroup.PLATFORM, '抖音次券', PromoType.DY_COUNT, '抖音次卡核销', PromoScope.SINGLE_ITEM),
   cat('plat_item_alipay_set', PromoGroup.PLATFORM, '支付宝套餐券', PromoType.ALIPAY_SET_MEAL, '支付宝套餐核销', PromoScope.SINGLE_ITEM),
-  cat('plat_item_tb_set', PromoGroup.PLATFORM, '淘宝闪购套餐券', PromoType.TB_FLASH_SET_MEAL, '淘宝闪购套餐核销', PromoScope.SINGLE_ITEM),
 
   // ── 整单 · 营销活动 (5) ──
   cat('act_order_threshold_red', PromoGroup.ACTIVITY, '满减', PromoType.THRESHOLD_REDUCE, '满额立减', PromoScope.ORDER),
@@ -78,21 +78,20 @@ export const INITIAL_CATEGORIES: PromotionCategory[] = [
   cat('asset_item_points', PromoGroup.ASSET, '积分抵现', PromoType.POINTS_DEDUCTION, '积分抵扣订单金额', PromoScope.ORDER),
   cat('asset_item_single_card', PromoGroup.ASSET, '单次卡', PromoType.SINGLE_USE_CARD, '单次使用卡', PromoScope.ORDER),
 
-  // ── 整单 · 企迈POS (3) ──
-  cat('pos_order_custom', PromoGroup.POS, '自定义记账', PromoType.POS_ORDER_CUSTOM_ACCOUNT, 'POS整单自定义优惠', PromoScope.ORDER),
+  // ── 整单 · 企迈POS (4) ──
+  cat('pos_order_custom', PromoGroup.POS, '自定义记账', PromoType.POS_ORDER_CUSTOM_ACCOUNT, 'POS整单自定义记账', PromoScope.ORDER),
   cat('pos_order_fixed', PromoGroup.POS, '固定金额', PromoType.POS_ORDER_FIXED_AMOUNT, 'POS整单固定减免', PromoScope.ORDER),
   cat('pos_order_disc_scheme', PromoGroup.POS, '折扣方案', PromoType.POS_ORDER_DISCOUNT_SCHEME, 'POS整单折扣方案', PromoScope.ORDER),
+  cat('pos_order_custom_reduce', PromoGroup.POS, '自定义减免', PromoType.POS_ORDER_CUSTOM_REDUCE, 'POS整单自定义减免', PromoScope.ORDER),
 
-  // ── 整单 · 平台团购 (4) ──
+  // ── 整单 · 平台团购 (3) ──
   cat('plat_order_mt_cash', PromoGroup.PLATFORM, '美团代金券', PromoType.MT_CASH_VOUCHER, '美团代金券核销', PromoScope.ORDER),
   cat('plat_order_dy_cash', PromoGroup.PLATFORM, '抖音代金券', PromoType.DY_CASH_VOUCHER, '抖音代金券核销', PromoScope.ORDER),
   cat('plat_order_alipay_cash', PromoGroup.PLATFORM, '支付宝代金券', PromoType.ALIPAY_CASH_VOUCHER, '支付宝代金券核销', PromoScope.ORDER),
-  cat('plat_order_tb_cash', PromoGroup.PLATFORM, '淘宝闪购代金券', PromoType.TB_FLASH_CASH_VOUCHER, '淘宝闪购代金券核销', PromoScope.ORDER),
 
-  // ── 支付方式 (3) ──
+  // ── 支付方式 (2) ──
   cat('pay_balance', PromoGroup.PAYMENT, '储值余额', PromoType.STORED_VALUE_BALANCE, '会员卡储值余额支付', PromoScope.ORDER),
   cat('pay_physical_card', PromoGroup.PAYMENT, '实体储值卡', PromoType.PHYSICAL_STORED_VALUE_CARD, '实体储值卡支付', PromoScope.ORDER),
-  cat('pay_pos_settle', PromoGroup.PAYMENT, '企迈POS线下结账', PromoType.POS_OFFLINE_SETTLEMENT, 'POS线下结账方式', PromoScope.ORDER),
 ];
 
 export function hydratePriorityList(

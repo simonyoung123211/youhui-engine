@@ -57,7 +57,7 @@ export const PriorityManager: React.FC<PriorityManagerProps> = ({
   onSave,
   onToast,
 }) => {
-  // 支付方式等分组不参与计算顺序配置
+  // 支付方式和企迈POS分组不参与计算顺序配置
   const calcCategories = useMemo(
     () => categories.filter(c => !CALC_ORDER_EXCLUDED_GROUPS.includes(c.group)),
     [categories]

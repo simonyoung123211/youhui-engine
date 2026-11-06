@@ -79,7 +79,7 @@ const CORE_INSTANCES: PromoInstance[] = [
     effectiveEnd: '2026-06-30',
   }),
   inst('cpn_points_10', '1000积分抵10元', 'asset_item_points', 10, false, PromoScope.ORDER),
-  inst('act_bogo_coffee', '咖啡买1送1', 'act_item_bogo', 0, false, PromoScope.SINGLE_ITEM),
+  inst('act_bogo_coffee', '咖啡买一送一', 'act_item_bogo', 0, false, PromoScope.SINGLE_ITEM),
   inst('act_limited_disc', '午市限时8折', 'act_item_limited_disc', 0.8, true, PromoScope.SINGLE_ITEM, {
     effectiveStart: '2025-01-01',
     effectiveEnd: '2026-12-31',

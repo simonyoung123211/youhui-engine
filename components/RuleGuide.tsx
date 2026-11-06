@@ -226,7 +226,7 @@ export const RuleGuide: React.FC<RuleGuideProps> = ({ isOpen, onClose }) => {
               <div className="flex gap-3">
                 <span className="shrink-0 text-[#8c8c8c] font-mono text-[13px] h-fit">—</span>
                 <p className="text-[#595959] leading-relaxed">
-                  矩阵中显示「—」表示<b>无需配置</b>。支付方式类（储值余额、实体储值卡、POS 线下结账）在同一订单中通常唯一，同类单元格留空。
+                  矩阵中显示「—」表示<b>无需配置</b>。支付方式类（储值余额、实体储值卡）在同一订单中通常唯一，同类单元格留空。
                 </p>
               </div>
             </div>

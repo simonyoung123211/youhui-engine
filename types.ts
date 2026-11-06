@@ -50,6 +50,7 @@ export enum PromoType {
   POS_ITEM_CUSTOM_ACCOUNT = 'POS_ITEM_CUSTOM_ACCOUNT',
   POS_ITEM_FIXED_AMOUNT = 'POS_ITEM_FIXED_AMOUNT',
   POS_ITEM_DISCOUNT_SCHEME = 'POS_ITEM_DISCOUNT_SCHEME',
+  POS_ITEM_CUSTOM_REDUCE = 'POS_ITEM_CUSTOM_REDUCE',
 
   // 单品 · 平台团购
   MT_SET_MEAL = 'MT_SET_MEAL',
@@ -57,7 +58,6 @@ export enum PromoType {
   DY_SET_MEAL = 'DY_SET_MEAL',
   DY_COUNT = 'DY_COUNT',
   ALIPAY_SET_MEAL = 'ALIPAY_SET_MEAL',
-  TB_FLASH_SET_MEAL = 'TB_FLASH_SET_MEAL',
 
   // 整单 · 营销活动
   THRESHOLD_REDUCE = 'THRESHOLD_REDUCE',
@@ -77,17 +77,16 @@ export enum PromoType {
   POS_ORDER_CUSTOM_ACCOUNT = 'POS_ORDER_CUSTOM_ACCOUNT',
   POS_ORDER_FIXED_AMOUNT = 'POS_ORDER_FIXED_AMOUNT',
   POS_ORDER_DISCOUNT_SCHEME = 'POS_ORDER_DISCOUNT_SCHEME',
+  POS_ORDER_CUSTOM_REDUCE = 'POS_ORDER_CUSTOM_REDUCE',
 
   // 整单 · 平台团购
   MT_CASH_VOUCHER = 'MT_CASH_VOUCHER',
   DY_CASH_VOUCHER = 'DY_CASH_VOUCHER',
   ALIPAY_CASH_VOUCHER = 'ALIPAY_CASH_VOUCHER',
-  TB_FLASH_CASH_VOUCHER = 'TB_FLASH_CASH_VOUCHER',
 
   // 支付方式
   STORED_VALUE_BALANCE = 'STORED_VALUE_BALANCE',
   PHYSICAL_STORED_VALUE_CARD = 'PHYSICAL_STORED_VALUE_CARD',
-  POS_OFFLINE_SETTLEMENT = 'POS_OFFLINE_SETTLEMENT',
 }
 
 export interface PromotionCategory {
@@ -229,26 +228,25 @@ export interface Product {
 
 /**
  * 业务分组在计算顺序中的默认权重（数值越小越先执行）。
- * 支付方式类不参与优惠计算顺序配置，已从计算顺序中排除。
+ * 支付方式类和企迈POS类不参与优惠计算顺序配置，已从计算顺序中排除。
  * 平台团购按作用对象拆分：
  * - 单品类（套餐券/次券）先核销并占用商品，权重置于所有商家侧单品优惠之前；
  * - 整单类（平台代金券）为订单金额抵扣，权重置于所有商家侧整单优惠之后。
  */
-const GROUP_PRIORITY: Record<PromoGroup, { item: number; order: number }> = {
+const GROUP_PRIORITY: Partial<Record<PromoGroup, { item: number; order: number }>> = {
   [PromoGroup.PLATFORM]: { item: -100, order: 130 },
   [PromoGroup.MEMBER]: { item: 0, order: 90 },
   [PromoGroup.ACTIVITY]: { item: 20, order: 100 },
   [PromoGroup.ASSET]: { item: 40, order: 110 },
-  [PromoGroup.POS]: { item: 50, order: 120 },
-  [PromoGroup.PAYMENT]: { item: 200, order: 200 },
 };
 
 /** 不参与计算顺序配置的分组 */
-export const CALC_ORDER_EXCLUDED_GROUPS: PromoGroup[] = [PromoGroup.PAYMENT];
+export const CALC_ORDER_EXCLUDED_GROUPS: PromoGroup[] = [PromoGroup.PAYMENT, PromoGroup.POS];
 
 export const getDefaultPriority = (cats: PromotionCategory[]): string[] => {
   const getScore = (c: PromotionCategory) => {
     const base = GROUP_PRIORITY[c.group];
+    if (!base) return Number.MAX_SAFE_INTEGER;
     const scopeBase = c.defaultScope === PromoScope.SINGLE_ITEM ? base.item : base.order;
     // 同组内按名称稳定排序
     return scopeBase;

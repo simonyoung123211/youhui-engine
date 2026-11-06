@@ -48,10 +48,13 @@ export const SpecialRuleGuide: React.FC<SpecialRuleGuideProps> = ({
                 以下类型<strong className="font-medium text-[#262626]">没有活动实例</strong>，配置时只能按类型选择：
               </p>
               <ul className="list-disc pl-5 space-y-1 text-[#595959]">
-                <li>全部支付方式（储值余额、实体储值卡、企迈POS线下结账）</li>
-                <li>全部平台团购券（美团/抖音/支付宝/淘宝闪购 套餐券、次券、代金券等）</li>
+                <li>全部支付方式（储值余额、实体储值卡）</li>
+                <li>全部平台团购券（美团/抖音/支付宝套餐券、次券、代金券等）</li>
                 <li>消费特权、储值搭售折扣</li>
               </ul>
+              <p className="text-[12px] text-[#8c8c8c]">
+                会员价和付费会员价可按具体优惠实例配置。
+              </p>
               <p className="text-[12px] text-[#8c8c8c]">
                 在对象选择器的「活动实例」Tab 中，上述类型会标注「仅类型」，请使用「选择整个类型」完成配置。
               </p>

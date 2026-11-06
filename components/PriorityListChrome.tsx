@@ -34,7 +34,7 @@ export function PriorityListChrome({
             <h1 className="list-page-header__title">计算顺序</h1>
           </div>
           <p className="list-page-header__desc">
-            多种优惠科目可一起用时，按下方顺序依次计算：先算单品，再算整单。本页调整的是优惠科目先后，不是活动里的立减/改价/折扣。
+            多种优惠科目可一起用时，按下方顺序依次计算：先算单品，再算整单。本页配置的是优惠科目的计算顺序。
           </p>
         </div>
         <div className="list-page-header__actions">

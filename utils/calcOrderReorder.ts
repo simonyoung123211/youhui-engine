@@ -329,6 +329,5 @@ export const GROUP_PRIORITY_RATIONALE: { group: PromoGroup; itemHint: string; or
   { group: PromoGroup.MEMBER, itemHint: '改价类优先', orderHint: '权益类靠前' },
   { group: PromoGroup.ACTIVITY, itemHint: '营销活动居中', orderHint: '满减等活动' },
   { group: PromoGroup.ASSET, itemHint: '券/卡类靠后', orderHint: '代金券等' },
-  { group: PromoGroup.POS, itemHint: 'POS 自定义', orderHint: 'POS 整单' },
   { group: PromoGroup.PLATFORM, itemHint: '平台团购', orderHint: '平台券' },
 ];
